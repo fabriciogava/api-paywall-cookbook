@@ -1,0 +1,42 @@
+{
+  "name": "deep-thought-api",
+  "version": "1.0.0",
+  "description": "The Answer to the Ultimate Question of Life, the Universe, and Everything - A nerdy Hello World for x402",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev:node",
+    "dev:node": "tsx watch deploy/node/server.ts",
+    "dev:cloudflare": "wrangler dev --config deploy/cloudflare/wrangler.jsonc",
+    "build": "tsc",
+    "deploy:cloudflare": "wrangler deploy --config deploy/cloudflare/wrangler.jsonc --minify",
+    "docker:build": "docker build -f deploy/docker/Dockerfile -t deep-thought-api .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env deep-thought-api",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "x402",
+    "micropayments",
+    "api",
+    "hono",
+    "solana",
+    "hitchhikers-guide"
+  ],
+  "author": "Kobaru.io",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@x402/core": "^2.1.0",
+    "@x402/hono": "^2.1.0",
+    "@x402/svm": "^2.1.0",
+    "dotenv": "^17.2.3",
+    "hono": "^4.11.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241230.0",
+    "@types/node": "^25.0.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.16",
+    "wrangler": "^4.4.0"
+  }
+}

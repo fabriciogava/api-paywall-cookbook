@@ -1,0 +1,14 @@
+{
+    "$schema": "../../node_modules/wrangler/config-schema.json",
+    "name": "deep-thought-api",
+    "main": "index.ts",
+    "compatibility_date": "2026-01-05",
+    "compatibility_flags": [
+        "nodejs_compat"
+    ],
+    "vars": {
+        "FACILITATOR_URL": "https://gateway.kobaru.io"
+    }
+    // RESOURCE_WALLET_ADDRESS should be set as a secret:
+    // npx wrangler secret put RESOURCE_WALLET_ADDRESS
+}
