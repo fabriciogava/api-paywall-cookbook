@@ -166,6 +166,7 @@ async function main() {
     // 4. Wrap our verbose fetch with the x402 payment logic
     const fetchWithPayment = wrapFetchWithPayment(verboseFetch, client);
     const targetUrl = process.argv[2] || DEFAULT_TARGET_URL;
+    const requestBody = process.argv[3];
 
     // URL Validation
     try {
@@ -187,13 +188,29 @@ async function main() {
     logSection("PHASE 1: RECONNAISSANCE", "📡");
 
     logInfo(`Target: ${targetUrl}`);
+    if (requestBody) {
+        logInfo(`Method: POST`);
+        logInfo(`Payload: ${requestBody}`);
+    } else {
+        logInfo(`Method: GET`);
+    }
     logExplanation("We are about to make the first request without any credentials to see if it's protected.");
 
     try {
         // Pass empty init object to satisfy @x402/fetch library requirement
         logInfo("Mission timer started...");
         const startTime = performance.now();
-        const response = await fetchWithPayment(targetUrl, {});
+
+        const fetchOptions: RequestInit = {};
+        if (requestBody) {
+            fetchOptions.method = "POST";
+            fetchOptions.body = requestBody;
+            fetchOptions.headers = {
+                "Content-Type": "application/json"
+            };
+        }
+
+        const response = await fetchWithPayment(targetUrl, fetchOptions);
         const duration = (performance.now() - startTime).toFixed(2);
         logDetail("Total mission duration", `${duration}ms`);
 
