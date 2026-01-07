@@ -2,7 +2,7 @@
 
 > "You shall not pass... without paying the x402 tribute!" - *The Grey Pilgrim*
 
-Welcome, traveler. This API is an arcane construct designed to gaze into the swirling mists of YouTube and extract pure, distilled wisdom using the eldritch powers of **Google Vertex AI (Gemini 2.5 Flash)**.
+Welcome, traveler. This API is an arcane construct designed to gaze into the swirling mists of YouTube and extract pure, distilled wisdom using the eldritch powers of **Google AI Studio (Gemini 2.5 Flash)**.
 
 It is guarded by the ancient **x402 Protocol**, a magical barrier that demands a fair tribute in exchange for knowledge. The price of wisdom is not fixed—it fluctuates with the length of the scrolls (transcript tokens).
 
@@ -21,7 +21,7 @@ It is guarded by the ancient **x402 Protocol**, a magical barrier that demands a
 This example is not merely a parlor trick; it demonstrates high-level wizardry for the modern age:
 
 1.  **Monetization of Thought (LLM Wrapper Revenue)**: It shows how effortless it is to create a revenue stream from an AI wrapper. You aren't just giving access to raw magic; you are selling *insight*.
-2.  **Alchemy of Value**: By fusing YouTube (knowledge source) with Vertex AI (intelligence), we create something greater than the sum of its parts. It is not a simple "pass-thru" to a chatbot; it is a specific tool that solves a tangible problem (digesting long videos), adding genuine value.
+2.  **Alchemy of Value**: By fusing YouTube (knowledge source) with Gemini (intelligence), we create something greater than the sum of its parts. It is not a simple "pass-thru" to a chatbot; it is a specific tool that solves a tangible problem (digesting long videos), adding genuine value.
 3.  **Equivalent Exchange (Dynamic Pricing)**: Unlike simple "flat fee" spells, this API calculates the cost based on the labor required (transcript length). The x402 protocol handles this negotiation seamlessly, ensuring fair compensation for heavier workloads.
 4.  **Instant Summoning**: With Docker, this service is ready for production. Minimal incantations are needed to deploy it to the cloud.
 
@@ -41,7 +41,7 @@ Why do we trade in integers and set floors?
 
 Before you can cast this spell, you must gather these artifacts:
 
-1.  **A Bond with the Clouds**: A Google Cloud Project with the Vertex AI API enabled.
+1.  **A Key to the Oracle**: A Google AI Studio API key (obtain from [aistudio.google.com](https://aistudio.google.com)).
 2.  **A Pouch of Tokens**: A Solana Devnet wallet to receive the tithes (and to pay them, if you are testing the incantations).
 3.  **The Vessel**: Docker, to contain the spirit of the application.
 
@@ -60,13 +60,8 @@ Before you can cast this spell, you must gather these artifacts:
 
 3.  **Infuse with Mana**:
     Edit `.env` and inscribe your true names:
-    -   `GOOGLE_PROJECT_ID`: The name of your cloud dominion.
+    -   `GOOGLE_API_KEY`: Your API key from Google AI Studio.
     -   `RESOURCE_WALLET_ADDRESS`: Your Solana Devnet address (where the gold flows).
-
-4.  **The Key of Authority (Google Credentials)**:
-    Ensure you possess the `application_default_credentials.json`. The Docker golem expects it to be mounted.
-    *By the old laws, it seeks `~/.config/gcloud/application_default_credentials.json`.*
-    If your key lies elsewhere, you must adjust the `deploy/docker/docker-compose.yml` summoning circle.
 
 ## ⚡ Casting the Spell (Running the API)
 
@@ -96,7 +91,7 @@ Try to demand wisdom from a video (e.g., a tale of TED) without offering tribute
 ```bash
 curl -i -X POST http://localhost:3000/wisdom \
   -H "Content-Type: application/json" \
-  -d '{"url": "https://www.youtube.com/watch?v=s41p7Fvj1h8"}'
+  -d '{"url": "https://www.youtube.com/watch?v=eF9BtrX0YEE"}'
 ```
 
 **"YOU SHALL NOT PASS!"**
@@ -139,7 +134,7 @@ curl -i -X POST http://localhost:3000/wisdom \
 The tower is built with the geometry of the Ancients (Clean Architecture):
 
 -   **The Inner Sanctum (Core)**: Pure entities (`Transcript`, `Wisdom`) and the essence of logic (`WisdomService`), untouched by the shifting sands of frameworks.
--   **The Outer Walls (Infra)**: Adapters that commune with the external worlds of `VertexAI` and `YouTube`.
+-   **The Outer Walls (Infra)**: Adapters that commune with the external worlds of `Gemini` and `YouTube`.
 -   **The Gate (Presentation)**: A Hono server acting as the gatekeeper, speaking the tongue of HTTP and enforcing the x402 payment pacts.
 
 ## 📜 The Source of Power (Credits)
