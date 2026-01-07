@@ -44,22 +44,14 @@ Think of this as a **sandbox for developers** — a place to experiment, learn, 
 api-paywall-cookbook/
 ├── examples/
 │   ├── nodejs/
-│   │   ├── weather-api/           # Simple weather data API
-│   │   ├── image-resizer/         # Image processing service
+│   │   ├── deep-thought-api/      # Reference implementation (Hono + x402)
+│   │   ├── extract-wisdom-api/    # AI-powered YouTube wisdom extraction
 │   │   └── ...
-│   ├── python/
-│   │   ├── sentiment-analysis/    # NLP sentiment API
-│   │   └── ...
-│   ├── go/
-│   │   ├── currency-converter/    # Real-time exchange rates
-│   │   └── ...
-│   └── advanced/
-│       ├── multi-tier-pricing/    # Different prices per endpoint
-│       └── ...
-├── docs/
-│   ├── getting-started.md
-│   ├── how-x402-works.md
-│   └── deploying-to-production.md
+│   ├── python/                    # Coming soon
+│   ├── go/                        # Coming soon
+│   └── advanced/                  # Coming soon
+├── tools/
+│   └── 007-test-agent/            # Universal x402 API testing tool
 └── README.md
 ```
 
@@ -105,11 +97,13 @@ api-paywall-cookbook/
 5. **Test the paywalled endpoint**
 
    ```bash
-   # First request returns 402 Payment Required
-   curl http://localhost:3000/weather?city=tokyo
-   
-   # Pay and access (using x402 client)
-   npx @x402/cli pay http://localhost:3000/weather?city=tokyo
+   # Using the 007 Test Agent (recommended)
+   cd tools/007-test-agent
+   npm install
+   npm start http://localhost:3000/answer
+
+   # Or use curl to see the 402 response
+   curl http://localhost:3000/answer
    ```
 
 ---
@@ -121,6 +115,7 @@ All cookbook examples are deployed to production. You can test them directly:
 | API | Description | Price | Network |
 |-----|-------------|-------|---------|
 | 🧠 Deep Thought API | The Answer to Life, Universe, and Everything | $0.001 | Solana |
+| 🧙 Extract Wisdom API | AI-powered wisdom extraction from YouTube videos | Dynamic (per token) | Solana |
 
 *More APIs coming soon!*
 
@@ -132,7 +127,7 @@ All cookbook examples are deployed to production. You can test them directly:
 
 | Language | Examples | Status |
 |----------|----------|--------|
-| **Node.js** | [Deep Thought API](examples/nodejs/deep-thought-api) (Hono) | ✅ Available |
+| **Node.js** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
 | **Python** | FastAPI, Flask | 🔜 Coming Soon |
 | **Go** | Standard library, Gin | 🔜 Coming Soon |
 
@@ -140,7 +135,7 @@ All cookbook examples are deployed to production. You can test them directly:
 
 | Network | Examples | Status |
 |---------|----------|--------|
-| **Solana** | [Deep Thought API](examples/nodejs/deep-thought-api) | ✅ Available |
+| **Solana** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
 | **Base** | EVM examples | 🔜 Coming Soon |
 | **Arbitrum** | EVM examples | 🔜 Coming Soon |
 
@@ -149,7 +144,7 @@ All cookbook examples are deployed to production. You can test them directly:
 | Level | Description | Examples |
 |-------|-------------|----------|
 | 🟢 **Beginner** | Simple single-endpoint APIs | [Deep Thought API](examples/nodejs/deep-thought-api) |
-| 🟡 **Intermediate** | Multi-endpoint, different pricing | Coming Soon |
+| 🟡 **Intermediate** | Dynamic pricing, external integrations | [Extract Wisdom API](examples/nodejs/extract-wisdom-api) |
 | 🔴 **Advanced** | Sessions, subscriptions, streaming | Coming Soon |
 
 ---
@@ -189,6 +184,40 @@ With Kobaru, you don't need to handle blockchain interactions directly. Simply:
 1. Add the x402 middleware to your API
 2. Configure your payment requirements (price, accepted tokens/networks)
 3. Let Kobaru handle verification and settlement
+
+---
+
+## 🛠️ Development Tools
+
+### 007 Test Agent
+
+A universal testing tool for x402-enabled APIs. Test **any** paywalled endpoint (local, remote, third-party) with Solana payments.
+
+**Features:**
+- ✅ Works with any x402-compliant API
+- ✅ Detailed logging of the payment flow
+- ✅ Support for Solana mainnet and devnet
+- ✅ Simple command-line interface
+
+**Quick Usage:**
+```bash
+cd tools/007-test-agent
+npm install
+cp .env.example .env
+# Add your SVM_PRIVATE_KEY to .env
+
+# Test any x402 API
+npm start http://localhost:3000/answer
+npm start https://api.example.com/paid-endpoint
+```
+
+Perfect for:
+- Testing your APIs during development
+- Exploring third-party paywalled APIs
+- Understanding the x402 protocol flow
+- Automated integration testing
+
+[Read the full documentation →](tools/007-test-agent/README.md)
 
 ---
 

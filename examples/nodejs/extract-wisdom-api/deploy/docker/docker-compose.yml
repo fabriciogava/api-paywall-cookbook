@@ -1,0 +1,16 @@
+services:
+  api:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - FACILITATOR_URL=https://gateway.kobaru.io
+      - RESOURCE_WALLET_ADDRESS=${RESOURCE_WALLET_ADDRESS}
+      - SOLANA_NETWORK_ID=solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1
+      - USDC_ASSET_ADDRESS=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+    env_file:
+      - ../../.env
