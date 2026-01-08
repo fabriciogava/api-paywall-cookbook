@@ -11,6 +11,8 @@ import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
 // This import brings in support for the Solana blockchain (SVM = Solana Virtual Machine)
 // We use 'ExactSvmScheme' to say "I want exactly this amount of crypto on Solana"
 import { ExactSvmScheme } from "@x402/svm/exact/server";
+// This import brings in support for the EVM blockchains (Ethereum, Base, etc.)
+import { ExactEvmScheme } from "@x402/evm/exact/server";
 
 // The Facilitator is your gateway to the complex world of blockchain.
 // It handles checking the blockchain so you don't have to run your own node.
@@ -19,7 +21,8 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 // Configuration interface - platform agnostic
 // This separates "what code runs" from "where it runs" (Node vs Cloudflare)
 export interface AppConfig {
-    resourceWalletAddress: string;
+    solanaWalletAddress?: string;
+    baseWalletAddress?: string;
     facilitatorUrl: string;
 }
 
@@ -36,6 +39,16 @@ export interface AppConfig {
 // "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
 const NETWORK_ID = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1" as const;
 
+// ⚠️ WARNING: THIS IS BASE SEPOLIA! ⚠️
+//
+// This example uses the Base Sepolia network identifier (CAIP-2 format):
+// "eip155:84532"
+//
+// TO GO TO PRODUCTION:
+// You MUST change this to the Base Mainnet identifier:
+// "eip155:8453"
+const BASE_NETWORK_ID = "eip155:84532" as const;
+
 // ⚠️ USDC on Devnet ⚠️
 // This is the address for the content USDC token on the Solana Devnet.
 // "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
@@ -43,6 +56,14 @@ const NETWORK_ID = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1" as const;
 // TO GO TO PRODUCTION:
 // You MUST change this to the Solana Mainnet USDC address as stated. For USDC check https://developers.circle.com/stablecoins/usdc-contract-addresses
 const ASSET_ADDRESS = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+
+// ⚠️ USDC on Base Sepolia ⚠️
+// "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+//
+// TO GO TO PRODUCTION:
+// You MUST change this to the Base Mainnet USDC address:
+// "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+const BASE_ASSET_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 /**
  * Creates the Deep Thought API application.
@@ -62,10 +83,39 @@ export function createApp(config: AppConfig) {
     const facilitatorClient = new HTTPFacilitatorClient({ url: config.facilitatorUrl });
 
     // Then, create the server that handles payment logic
-    // We register the "ExactSvmScheme" for the Solana network.
-    // This tells the server: "If you see a payment request on Solana, use this logic to verify it."
-    const resourceServer = new x402ResourceServer(facilitatorClient)
-        .register(NETWORK_ID, new ExactSvmScheme());
+    const resourceServer = new x402ResourceServer(facilitatorClient);
+    
+    // We start building the accepted payment options
+    const paymentOptions: any[] = [];
+
+    // Check if Solana is enabled
+    if (config.solanaWalletAddress) {
+        resourceServer.register(NETWORK_ID, new ExactSvmScheme());
+        paymentOptions.push({
+            scheme: "exact" as const,
+            price: "$0.001",
+            network: NETWORK_ID,
+            asset: ASSET_ADDRESS,
+            payTo: config.solanaWalletAddress,
+        });
+    }
+
+    // Check if Base is enabled
+    if (config.baseWalletAddress) {
+        resourceServer.register(BASE_NETWORK_ID, new ExactEvmScheme());
+        paymentOptions.push({
+            scheme: "exact" as const,
+            price: "$0.001",
+            network: BASE_NETWORK_ID,
+            asset: BASE_ASSET_ADDRESS,
+            payTo: config.baseWalletAddress,
+        });
+    }
+
+    // Ensure at least one network is configured
+    if (paymentOptions.length === 0) {
+        throw new Error("At least one wallet address (Solana or Base) must be configured.");
+    }
 
     // 4. Define Your Paywall Rules
     // This object maps your API endpoints to their price tags.
@@ -74,24 +124,7 @@ export function createApp(config: AppConfig) {
             // "accepts" is an array of payment options.
             // You can list multiple networks here (e.g., Solana AND Base),
             // giving the user a choice of how to pay.
-            accepts: [
-                {
-                    // "scheme: exact" means the user must pay exactly the amount specified
-                    scheme: "exact" as const,
-
-                    // The price in USD. The protocol handles converting this to crypto amounts.
-                    price: "$0.001", // A mere 0.1 cents for the ultimate answer
-
-                    // Which blockchain network to use (Solana Devnet in this case)
-                    network: NETWORK_ID,
-
-                    // The asset you want to receive (USDC on Devnet)
-                    asset: ASSET_ADDRESS,
-
-                    // Where should the money go? Your wallet address!
-                    payTo: config.resourceWalletAddress,
-                },
-            ],
+            accepts: paymentOptions,
             // Metadata nicely describes what the user is buying
             description: "The Answer to the Ultimate Question of Life, the Universe, and Everything",
             mimeType: "application/json",

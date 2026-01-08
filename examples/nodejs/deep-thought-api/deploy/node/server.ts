@@ -13,17 +13,18 @@ import { createApp } from "../../src/app";
 // 1. Load configuration from environment variables
 // Always separate secrets (like wallet addresses) from code!
 const config = {
-    resourceWalletAddress: process.env.RESOURCE_WALLET_ADDRESS || "",
+    solanaWalletAddress: process.env.SOLANA_WALLET_ADDRESS,
+    baseWalletAddress: process.env.BASE_WALLET_ADDRESS,
     // You can host your own facilitator or use the public one from Kobaru
     facilitatorUrl: process.env.FACILITATOR_URL || "https://gateway.kobaru.io",
 };
 
 // 2. Validate essential configuration
-// We fail fast (exit immediately) if the wallet address is missing.
+// We fail fast (exit immediately) if both wallet addresses are missing.
 // It's better to crash on startup than to run without receiving payments!
-if (!config.resourceWalletAddress) {
-    console.error("❌ RESOURCE_WALLET_ADDRESS environment variable is required");
-    console.error("   Set it in your .env file or environment");
+if (!config.solanaWalletAddress && !config.baseWalletAddress) {
+    console.error("❌ At least one wallet address is required");
+    console.error("   Set SOLANA_WALLET_ADDRESS and/or BASE_WALLET_ADDRESS in your .env file");
     process.exit(1);
 }
 
@@ -47,7 +48,8 @@ console.log(`
     GET /health  → Health check (free)
 
   Facilitator: ${config.facilitatorUrl}
-  Wallet: ${config.resourceWalletAddress.slice(0, 8)}...
+  Solana Wallet: ${config.solanaWalletAddress ? config.solanaWalletAddress.slice(0, 8) + '...' : '(disabled)'}
+  Base Wallet: ${config.baseWalletAddress ? config.baseWalletAddress.slice(0, 8) + '...' : '(disabled)'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);

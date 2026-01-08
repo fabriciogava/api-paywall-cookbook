@@ -9,6 +9,11 @@
     "vars": {
         "FACILITATOR_URL": "https://gateway.kobaru.io"
     }
-    // RESOURCE_WALLET_ADDRESS should be set as a secret:
-    // npx wrangler secret put RESOURCE_WALLET_ADDRESS
+  // Secrets are not stored in this file!
+  //
+  // SOLANA_WALLET_ADDRESS / BASE_WALLET_ADDRESS should be set as secrets:
+  // npx wrangler secret put SOLANA_WALLET_ADDRESS
+  // npx wrangler secret put BASE_WALLET_ADDRESS
+  //
+  // FACILITATOR_URL is optional (defaults to Kobaru public instance)
 }

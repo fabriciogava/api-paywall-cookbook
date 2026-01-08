@@ -9,12 +9,13 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
+    environment:
+      - PORT=3000
+      - FACILITATOR_URL=${FACILITATOR_URL:-https://gateway.kobaru.io}
+      - SOLANA_WALLET_ADDRESS=${SOLANA_WALLET_ADDRESS}
+      - BASE_WALLET_ADDRESS=${BASE_WALLET_ADDRESS}
     ports:
       - "3000:3000"
-    environment:
-      - RESOURCE_WALLET_ADDRESS=${RESOURCE_WALLET_ADDRESS}
-      - FACILITATOR_URL=${FACILITATOR_URL:-https://gateway.kobaru.io}
-      - PORT=3000
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]

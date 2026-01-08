@@ -39,7 +39,7 @@ The API logic in `src/app.ts` is **100% platform-agnostic**. The `deploy/` direc
 ### Prerequisites
 
 - Node.js 18+
-- A Solana wallet address to receive payments
+- A Solana or Base wallet address to receive payments
 
 ### Installation
 
@@ -53,7 +53,7 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your Solana wallet address
+# Edit .env with your wallet addresses
 ```
 
 ---
@@ -79,8 +79,10 @@ Server runs at `http://localhost:3000`
 npm run dev:cloudflare
 
 # Production deployment
-# First, set your wallet as a secret:
-npx wrangler secret put RESOURCE_WALLET_ADDRESS --config deploy/cloudflare/wrangler.jsonc
+# First, set your wallet secrets:
+npx wrangler secret put SOLANA_WALLET_ADDRESS --config deploy/cloudflare/wrangler.jsonc
+# And/or
+npx wrangler secret put BASE_WALLET_ADDRESS --config deploy/cloudflare/wrangler.jsonc
 
 # Deploy
 npm run deploy:cloudflare
@@ -114,7 +116,8 @@ import { handle } from '@hono/vercel';
 import { createApp } from './src/app';
 
 export default handle(createApp({
-  resourceWalletAddress: process.env.RESOURCE_WALLET_ADDRESS!,
+  solanaWalletAddress: process.env.SOLANA_WALLET_ADDRESS,
+  baseWalletAddress: process.env.BASE_WALLET_ADDRESS,
   facilitatorUrl: process.env.FACILITATOR_URL!,
 }));
 ```
@@ -164,9 +167,9 @@ PAYMENT-REQUIRED: eyJ...base64-encoded-payment-requirements...
 
 The `PAYMENT-REQUIRED` header contains base64-encoded JSON with:
 - Payment amount ($0.001)
-- Accepted network (Solana Devnet)
+- Accepted network (Solana Devnet or Base Sepolia)
 - Your wallet address
-- Asset (USDC on Solana)
+- Asset (USDC on Solana or Base)
 
 After payment via an x402 client:
 ```json
@@ -184,7 +187,8 @@ After payment via an x402 client:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `RESOURCE_WALLET_ADDRESS` | Yes | - | Your Solana wallet address |
+| `SOLANA_WALLET_ADDRESS` | No* | - | Your Solana wallet address (*At least one wallet required) |
+| `BASE_WALLET_ADDRESS` | No* | - | Your Base wallet address (*At least one wallet required) |
 | `FACILITATOR_URL` | No | `https://gateway.kobaru.io` | x402 facilitator URL |
 | `PORT` | No | `3000` | Server port (Node.js/Docker) |
 
@@ -195,7 +199,7 @@ After payment via an x402 client:
 1. **Platform-Agnostic Design** — Same app runs on Cloudflare, Node.js, Docker, etc.
 2. **Hono Framework** — Lightweight, fast, multi-runtime framework
 3. **x402 Protocol** — Native micropayments with the HTTP 402 status code
-4. **Solana Payments** — Uses Solana Devnet for micropayments via `@x402/svm`
+4. **Multi-Chain Payments** — Supports Solana (Devnet) and Base (Sepolia) via `@x402/svm` and `@x402/evm`
 5. **Kobaru Facilitator** — Handles payment verification and settlement
 
 ---

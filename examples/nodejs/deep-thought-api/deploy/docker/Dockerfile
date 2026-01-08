@@ -1,9 +1,9 @@
 # Deep Thought API - Docker Deployment
 # 
 # Build: docker build -f deploy/docker/Dockerfile -t deep-thought-api .
-# Run:   docker run -p 3000:3000 -e RESOURCE_WALLET_ADDRESS=your-wallet deep-thought-api
+# Run:   docker run -p 3000:3000 -e SOLANA_WALLET_ADDRESS=your-wallet -e BASE_WALLET_ADDRESS=your-base-wallet deep-thought-api
 
-FROM node:20-alpine AS builder
+# Stage 1: Build the application
 
 WORKDIR /app
 

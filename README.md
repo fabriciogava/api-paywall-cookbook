@@ -136,8 +136,7 @@ All cookbook examples are deployed to production. You can test them directly:
 | Network | Examples | Status |
 |---------|----------|--------|
 | **Solana** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
-| **Base** | EVM examples | 🔜 Coming Soon |
-| **Arbitrum** | EVM examples | 🔜 Coming Soon |
+| **Base** | [Deep Thought API](examples/nodejs/deep-thought-api) | ✅ Available |
 
 ### By Complexity
 

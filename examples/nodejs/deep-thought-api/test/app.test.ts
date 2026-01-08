@@ -1,10 +1,29 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createApp } from "../src/app";
+
+// Mock @x402/hono to bypass payment validation logic
+vi.mock("@x402/hono", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@x402/hono")>();
+    return {
+        ...actual,
+        x402ResourceServer: class {
+            constructor() { }
+            register() { }
+            async initialize() { }
+            hasRegisteredScheme() { return true; }
+            buildPaymentRequirementsFromOptions(options: any) { return options; }
+            createPaymentRequiredResponse(requirements: any) { return { accepts: requirements }; }
+            getSupportedKind() {
+                return { scheme: "exact", network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1" };
+            }
+        },
+    };
+});
 
 describe("Deep Thought API", () => {
     // Mock config
     const config = {
-        resourceWalletAddress: "mock-wallet-address",
+        solanaWalletAddress: "mock-wallet-address",
         facilitatorUrl: "https://mock-facilitator.com",
     };
 

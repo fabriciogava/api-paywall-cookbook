@@ -4,6 +4,7 @@
   "description": "The Answer to the Ultimate Question of Life, the Universe, and Everything - A nerdy Hello World for x402",
   "type": "module",
   "scripts": {
+    "test": "vitest run",
     "dev": "npm run dev:node",
     "dev:node": "tsx watch deploy/node/server.ts",
     "dev:cloudflare": "wrangler dev --config deploy/cloudflare/wrangler.jsonc",
@@ -26,6 +27,7 @@
   "dependencies": {
     "@hono/node-server": "^1.13.0",
     "@x402/core": "^2.1.0",
+    "@x402/evm": "^2.1.0",
     "@x402/hono": "^2.1.0",
     "@x402/svm": "^2.1.0",
     "dotenv": "^17.2.3",

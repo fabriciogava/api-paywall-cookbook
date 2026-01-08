@@ -12,7 +12,8 @@ import { createApp } from "../../src/app";
 // In Cloudflare, environment variables are passed into the `fetch` function,
 // not stored in a global `process.env` like in Node.js.
 interface Env {
-    RESOURCE_WALLET_ADDRESS: string;
+    SOLANA_WALLET_ADDRESS?: string;
+    BASE_WALLET_ADDRESS?: string;
     FACILITATOR_URL: string;
 }
 
@@ -21,7 +22,8 @@ export default {
     async fetch(request: Request, env: Env): Promise<Response> {
         // Initialize the app with the variables from the current request environment
         const app = createApp({
-            resourceWalletAddress: env.RESOURCE_WALLET_ADDRESS,
+            solanaWalletAddress: env.SOLANA_WALLET_ADDRESS,
+            baseWalletAddress: env.BASE_WALLET_ADDRESS,
             facilitatorUrl: env.FACILITATOR_URL,
         });
 
