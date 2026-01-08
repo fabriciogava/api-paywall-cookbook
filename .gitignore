@@ -39,3 +39,7 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+CLAUDE.md
+.claude/
+GEMINI.md
+.ring/

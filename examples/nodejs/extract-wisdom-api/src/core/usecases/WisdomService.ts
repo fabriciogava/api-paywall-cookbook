@@ -51,13 +51,17 @@ export class WisdomService {
             // 1 token ~= 4 characters in English. This is standard for LLM pricing.
             const tokenCount = Math.ceil(text.length / 4);
 
-            // Create our Transcript entity
+            // Calculate price BEFORE creating the entity so we can cache it together
+            const price = this.calculatePrice(tokenCount);
+
+            // Create our Transcript entity with the quoted price
             transcript = {
                 url,
                 videoId: url, // Simplified logic
                 text,
                 tokenCount,
-                language
+                language,
+                quotedPrice: price.amount // Cache the quoted price for verification
             };
 
             // 3. Cache it! 
@@ -66,9 +70,19 @@ export class WisdomService {
             await this.storage.saveTranscript(key, transcript);
         }
 
-        // Calculate the price based on the work required
-        const price = this.calculatePrice(transcript.tokenCount);
+        // Return the cached price from the transcript (ensures consistency)
+        const price: Pricing = { amount: transcript.quotedPrice, currency: "USDC" };
         return { transcript, price };
+    }
+
+    /**
+     * Get the cached quoted price for a URL.
+     * Returns null if no quote exists (client must call prepareForWisdom first).
+     */
+    async getQuotedPrice(url: string): Promise<string | null> {
+        const key = this.generateKey(url);
+        const transcript = await this.storage.getTranscript(key);
+        return transcript?.quotedPrice ?? null;
     }
 
     /**
@@ -76,17 +90,18 @@ export class WisdomService {
      * 
      * This method is only called AFTER payment is verified by the Presentation layer (app.ts).
      * It uses the AI Provider to analyze the text.
+     * 
+     * SECURITY: Requires a cached transcript with a quoted price.
+     * If the cache is empty, the request is rejected (prevents bait-and-switch attacks).
      */
     async getWisdom(url: string, requestedLanguage?: string): Promise<Wisdom> {
         const key = this.generateKey(url);
-        let transcript = await this.storage.getTranscript(key);
+        const transcript = await this.storage.getTranscript(key);
 
         if (!transcript) {
-            // Edge case: Cache expired between Step 1 and Step 2.
-            // We should re-fetch. Ideally, we shouldn't charge again if fetch fails, 
-            // but for this simple example, we just re-run the preparation logic.
-            const { transcript: newTranscript } = await this.prepareForWisdom(url);
-            transcript = newTranscript;
+            // SECURITY: Do NOT re-fetch or prepare here.
+            // If no cached quote exists, the client is trying to skip the pricing step.
+            throw new Error("No cached quote found for this URL. Request a price first.");
         }
 
         // Call the AI Service (e.g. Vertex AI)

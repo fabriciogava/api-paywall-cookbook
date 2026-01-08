@@ -4,6 +4,7 @@ export interface Transcript {
     text: string;
     tokenCount: number;
     language: string;
+    quotedPrice: string; // Cached price in major units (e.g., "0.02" USDC) for verification
 }
 
 export interface Pricing {

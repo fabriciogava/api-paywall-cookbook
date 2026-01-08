@@ -37,6 +37,31 @@ Why do we trade in integers and set floors?
 3.  **Middleware Calculation**: The price is calculated *dynamically* by the `paymentMiddleware` interception layer. It fetches the video transcript, counts the tokens, and determines the price before the main application logic ever runs—guarding the GPU resources until payment is proven.
 4.  **Error Handling**: If the video transcript cannot be fetched (e.g. video doesn't exist or transcripts are disabled), the API will return a `404 Not Found` immediately. It will **NOT** issue a 402 challenge, ensuring users are never asked to pay for content that cannot be delivered. Note: YouTube does not reliably distinguish between invalid videos and disabled transcripts via API, so the error message will be generic.
 
+## 🛡️ The Binding Ward (Anti-Fraud Protection)
+
+A cunning trickster might attempt a **bait-and-switch** attack:
+1. Send a short video URL (cheap price quoted)
+2. Pay the small tribute
+3. Submit the payment with a *different* URL pointing to a 10-hour lecture
+
+The Wizard has countermeasures:
+
+1.  **Price-URL Binding**: When the transcript is cached, the `quotedPrice` is stored alongside it. Each URL has its own cached price.
+2.  **Re-validation on Payment**: The `price` callback runs on *every* request (including the paid one). If the attacker swaps URLs, the middleware recalculates the price for the *new* URL and rejects the insufficient payment.
+3.  **No Cache Bypass**: The `getWisdom()` function refuses to process any URL without a cached transcript. Attackers cannot skip the pricing step.
+
+**Attack Flow (Blocked):**
+```
+1. Attacker → POST /wisdom { url: "short-video" } → 402: Pay $0.02
+2. Attacker pays $0.02
+3. Attacker → POST /wisdom { url: "10-hour-lecture" } + payment
+4. Middleware calls price("10-hour-lecture") → $5.00 required
+5. Payment ($0.02) < Required ($5.00) → 402 REJECTED ✅
+```
+
+> [!TIP]
+> This protection is automatic—no additional configuration required. The in-memory cache serves double duty: speeding up repeated requests AND binding prices to specific URLs.
+
 ## 📜 Magical Reagents (Prerequisites)
 
 Before you can cast this spell, you must gather these artifacts:
