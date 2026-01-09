@@ -1,25 +1,27 @@
-# 🕵️ Agent 007 - Classified Paywall Auditor
+# Agent 007 - Classified Paywall Auditor
 
 > **TOP SECRET // EYES ONLY**
 > **SUBJECT:** Universal validation tool for x402-fortified API endpoints.
 
-This elite digital asset is designed to **perform military-grade validation** of any x402-compliant API paywall using Solana payment rails. It demonstrates the complete payment lifecycle ("The Audit") with **Real-Time Wiretap Logging** and **Educational Intel**.
+This elite digital asset is designed to **perform military-grade validation** of any x402-compliant API paywall using Solana or Base payment rails. It demonstrates the complete payment lifecycle ("The Audit") with **Real-Time Wiretap Logging** and **Educational Intel**.
 
 **Mission Objectives:**
-- 🛡️ **Defense Systems Check:** Validate your own x402 APIs during R&D.
-- 🔭 **Security Audit:** Inspect and verify third-party paywalled endpoints.
-- 🧠 **Protocol Analysis:** Gain deep understanding of the x402 protocol handshake.
-- 🎓 **Agent Training:** Learn the x402 flow through "For Dummies" style field notes.
+- **Defense Systems Check:** Validate your own x402 APIs during R&D.
+- **Security Audit:** Inspect and verify third-party paywalled endpoints.
+- **Protocol Analysis:** Gain deep understanding of the x402 protocol handshake.
+- **Agent Training:** Learn the x402 flow through "For Dummies" style field notes.
 
 **Tactical Capabilities:**
-- 🔒 **URL Validation:** Military-grade target verification rejects malformed or dangerous protocols.
-- ⏱️ **Mission Timing:** Precision performance metrics using high-resolution timers.
-- 🤖 **CI/CD Ready:** Proper exit codes (0=success, 1=failure) for automation pipelines.
-- 🚨 **Interactive Mainnet Safety:** Confirms authorization before spending real assets.
+- **URL Validation:** Military-grade target verification rejects malformed or dangerous protocols.
+- **Mission Timing:** Precision performance metrics using high-resolution timers.
+- **Timeout Override:** Optional countdown timer aborts slow missions after specified duration.
+- **CI/CD Ready:** Proper exit codes (0=success, 1=failure) for automation pipelines.
+- **Interactive Mainnet Safety:** Confirms authorization before spending real assets.
+- **Multi-Network Support:** Operates on both Solana (SVM) and Base (EVM) networks.
 
 ---
 
-## 🚀 Mission Briefing (Quick Start)
+## Mission Briefing (Quick Start)
 
 ### 1. Equip Tech (Install Dependencies)
 
@@ -38,131 +40,195 @@ Establish your cover identity:
 cp .env.example .env
 ```
 
-**WARNING:** Access the classified `.env` file and input your Solana private key (Base58 encoded). This is your digital credentials for authorization.
+**WARNING:** Access the classified `.env` file and input your private key. This is your digital credentials for authorization.
 
+**For Solana networks** (`solana`, `solana-mainnet`):
 ```env
 SVM_PRIVATE_KEY=your_base58_private_key_here
 ```
 
+**For Base networks** (`base`, `base-mainnet`):
+```env
+EVM_PRIVATE_KEY=your_hex_private_key_here
+```
+
+> **INTEL:** You can configure both keys in the same `.env` file. The agent selects the appropriate one based on your `--network` flag.
+
 ### 3. Launch Operation (Run Tests)
+
+**CRITICAL:** The `--network` flag is **REQUIRED** for all operations. This prevents accidental real-money transactions by forcing explicit network selection.
+
+**Valid network options:**
+| Option | Network | Type | Environment |
+|--------|---------|------|-------------|
+| `solana` | Solana Devnet | SVM | Simulation |
+| `solana-mainnet` | Solana Mainnet | SVM | Live Fire |
+| `base` | Base Sepolia | EVM | Simulation |
+| `base-mainnet` | Base Mainnet | EVM | Live Fire |
+
+> **INTEL:** Network aliases are accepted: `solana-devnet` maps to `solana`, and `base-sepolia` or `base-devnet` map to `base`.
+
+**Command Syntax:**
+```bash
+npm start [URL] [JSON_BODY] --network <network> [--timeout <ms>]
+```
+
+| Flag | Short | Required | Description |
+|------|-------|----------|-------------|
+| `--network` | `-n` | Yes | Target network (solana, solana-mainnet, base, base-mainnet) |
+| `--timeout` | `-t` | No | Request timeout in milliseconds (default: no timeout) |
 
 **Audit Specific Targets:**
 ```bash
-npm start http://localhost:3000/answer
-npm start https://api.example.com/paid-endpoint
+npm start http://localhost:3000/answer --network solana
+npm start https://api.example.com/paid-endpoint --network base-mainnet
+npm start http://slow-api.com/endpoint --network solana --timeout 30000
 ```
 
 **Audit Default Target** (Training Simulation):
 ```bash
-npm start
+npm start --network solana
 ```
 
-> **⚠️ TARGET VALIDATION:** The agent performs strict URL verification before any mission. Invalid protocols (like `file://` or `javascript:`) will trigger an immediate mission abort with guidance on proper usage.
+> **TARGET VALIDATION:** The agent performs strict URL verification before any mission. Invalid protocols (like `file://` or `javascript:`) will trigger an immediate mission abort with guidance on proper usage.
 
 **Automation Integration:**
 ```bash
 # Use in CI/CD pipelines - exit codes indicate mission status
-npm start http://localhost:3000/answer && echo "Mission Success" || echo "Mission Failed"
+npm start http://localhost:3000/answer --network solana && echo "Mission Success" || echo "Mission Failed"
 ```
 
 ---
 
-## 📖 Field Manual (FEATURES)
+## Field Manual (FEATURES)
 
-### 📡 Wiretap Mode (Hyper-Verbose Logging)
+### Wiretap Mode (Hyper-Verbose Logging)
 The agent now intercepts every signal. You will see:
-- 📨 **Outgoing HTTP Requests:** Exactly what goes over the wire.
-- 📥 **Incoming HTTP Responses:** Raw headers, including the mysterious `WWW-Authenticate`.
-- 🔑 **Credential Flashing:** See the exact moment the `Authorization` header is attached.
+- **Outgoing HTTP Requests:** Exactly what goes over the wire.
+- **Incoming HTTP Responses:** Raw headers, including the mysterious `WWW-Authenticate`.
+- **Credential Flashing:** See the exact moment the `Authorization` header is attached.
 
-### 💡 Educational Intel (For Rookie Agents)
+### Educational Intel (For Rookie Agents)
 Every tactical move is accompanied by **EDUCATIONAL INTEL** notes. These explain *why* the agent is doing what it's doing, translating complex protocol specs into plain English.
 
-### 🛡️ Safety Protocols (License to Kill)
+### POST Request Support (Data Transmission)
+
+The agent supports transmitting JSON payloads to paywalled endpoints. Pass a JSON body as the second positional argument:
+
+```bash
+npm start http://localhost:3000/ask '{"question":"What is 6x7?"}' --network solana
+```
+
+The agent automatically:
+- Sets the HTTP method to `POST`
+- Applies `Content-Type: application/json` header
+- Includes your payload in the request body
+
+This is useful for testing APIs that accept questions, queries, or other structured input behind a paywall.
+
+### Safety Protocols (License to Kill)
 The agent performs real-time environment detection to protect your assets:
-- **🧪 Devnet (Simulation):** "License to Kill" active. Transactions are authorized automatically for rapid testing.
-- **🚨 Mainnet (Live Fire):** License revoked. The agent halts mission execution and demands **interactive confirmation** before authorizing any real-money transaction.
+- **Devnet (Simulation):** "License to Kill" active. Transactions are authorized automatically for rapid testing.
+- **Mainnet (Live Fire):** License revoked. The agent halts mission execution and demands **interactive confirmation** before authorizing any real-money transaction.
 
 When mainnet is detected, you'll see:
 ```text
-   ⚠️  MISSION CRITICAL DECISION REQUIRED
-   ℹ️  🚨 LIVE FIRE EXERCISE DETECTED [MAINNET]
-      💡 EDUCATIONAL INTEL: You DO NOT have a 'License to Kill' (Spend Real Money) without explicit authorization.
-   ❓ CONFIRM REAL MONEY TRANSACTION? (Y/n): _
+   MISSION CRITICAL DECISION REQUIRED
+   LIVE FIRE EXERCISE DETECTED [MAINNET]
+   EDUCATIONAL INTEL: You DO NOT have a 'License to Kill' (Spend Real Money) without explicit authorization.
+   CONFIRM REAL MONEY TRANSACTION? (Y/n): _
 ```
 
-### ⏱️ Performance Metrics (Mission Timer)
+### Performance Metrics (Mission Timer)
 Every operation is timed with high-resolution precision using `performance.now()`. After mission completion, you'll receive total execution time:
 ```text
-      ▪️ Total mission duration: 1847ms
+      Total mission duration: 1847ms
 ```
 
-### 🤖 Automation Ready (Exit Codes)
+### Mission Timer Override (Timeout Control)
+
+By default, the agent waits indefinitely for target response. When operating against slow or unreliable targets, you can set a countdown timer that aborts the mission if exceeded.
+
+```bash
+# Abort if target doesn't respond within 30 seconds
+npm start http://slow-api.com/endpoint --network solana --timeout 30000
+
+# Short form
+npm start http://slow-api.com/endpoint --network solana -t 30000
+```
+
+**Behavior:**
+- When specified, the timeout applies to both the initial reconnaissance request and the payment retry.
+- When NOT specified, no timeout is enforced—the agent waits as long as necessary.
+- On timeout, mission aborts with: `Request timeout after {N}ms`
+
+**Use Cases:**
+- **CI/CD Pipelines:** Prevent builds from hanging on unresponsive targets.
+- **Resilience Testing:** Verify your API responds within acceptable time limits.
+- **Slow API Audits:** Set generous timeouts for known slow endpoints.
+
+### Automation Ready (Exit Codes)
 The agent returns proper exit codes for use in scripts and CI/CD pipelines:
 - **Exit 0:** Mission accomplished. Target successfully audited.
 - **Exit 1:** Mission failed. Includes: invalid URL, missing credentials, payment failure, or server rejection.
 
 ---
 
-## 📊 Post-Mission Report (Example Output)
+## Post-Mission Report (Example Output)
 
 Upon execution, the Agent will provide a detailed tactical log:
 
 ```text
 
-🕵️ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    AGENT 007 INITIALIZED - CODENAME: PAYWALL AUDITOR
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ℹ️  Gadget Loaded: Wallet Address: 7xKXtg2C...
 
-📡 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Gadget Loaded: Wallet Address: 7xKXtg2C...
+
    PHASE 1: RECONNAISSANCE
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ℹ️  Target: http://localhost:3000/answer
-   💡 EDUCATIONAL INTEL: We are about to make the first request without any credentials...
+
+   Target: http://localhost:3000/answer
+   EDUCATIONAL INTEL: We are about to make the first request without any credentials...
    ...
 
-🛑 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    PHASE 2: ANALYZING SECURITY PROTOCOL
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ℹ️  The target server stopped us with a '402 Payment Required' status.
-      ▪️ Scheme (How to pay): exact
-      ▪️ Price (How much): 1000
-      ▪️ Environment Detected: 🧪 DEVNET/TESTNET
 
-   ⚠️  MISSION CRITICAL DECISION REQUIRED
-   ℹ️  🧪 SIMULATION MODE [DEVNET]
-   💡 EDUCATIONAL INTEL: Environment secured. 'License to Kill' active: You may perform transactions at will.
+   The target server stopped us with a '402 Payment Required' status.
+      Scheme (How to pay): exact
+      Price (How much): 1000
+      Environment Detected: DEVNET/TESTNET
 
-✅ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MISSION CRITICAL DECISION REQUIRED
+   SIMULATION MODE [DEVNET]
+   EDUCATIONAL INTEL: Environment secured. 'License to Kill' active: You may perform transactions at will.
+
    PHASE 3: FABRICATING CREDENTIALS
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ℹ️  Payment transaction has been signed by your wallet.
+
+   Payment transaction has been signed by your wallet.
    ...
 
-🍸 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    PHASE 4: ACCESS GRANTED
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ℹ️  Final Status: 200 OK
-      ▪️ Total mission duration: 1847ms
-   💡 EDUCATIONAL INTEL: Success! The server accepted our payment proof and returned the hidden data.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Final Status: 200 OK
+      Total mission duration: 1847ms
+   EDUCATIONAL INTEL: Success! The server accepted our payment proof and returned the hidden data.
+
 ```
 
 ---
 
-## 🔑 Obtaining Credentials (Solana Private Key)
+## Obtaining Credentials (Private Keys)
 
-### Method A: Extract from Existing Cover (Wallet)
+### Solana (SVM) Networks
+
+#### Method A: Extract from Existing Cover (Wallet)
 
 Extract your private key from standard issue digital wallets (Phantom, Solflare):
-- **Phantom:** Settings → Security & Privacy → Export Private Key
-- **Solflare:** Settings → Export Private Key
+- **Phantom:** Settings -> Security & Privacy -> Export Private Key
+- **Solflare:** Settings -> Export Private Key
 
-⚠️ **ADVISORY:** Use a segregated wallet for field operations. Never expose your primary vault.
+**ADVISORY:** Use a segregated wallet for field operations. Never expose your primary vault.
 
-### Method B: Forge New Identity (CLI)
+#### Method B: Forge New Identity (CLI)
 
 Generate a fresh identity using Solana Command Line tools:
 
@@ -172,25 +238,53 @@ solana-keygen pubkey ~/burner-wallet.json  # Identity Check
 cat ~/burner-wallet.json  # Decode to Base58 for .env
 ```
 
-### Method C: Simulation Mode (Devnet)
+#### Method C: Simulation Mode (Devnet)
 
 For training without financial risk:
 1. Create a burner wallet (Method B).
 2. Request funds from HQ (Solana Faucet): https://faucet.solana.com/
 3. Request USDC assets: https://faucet.circle.com/
 
+### Base (EVM) Networks
+
+#### Method A: Extract from Existing Cover (Wallet)
+
+Extract your private key from MetaMask or similar EVM wallets:
+- **MetaMask:** Settings -> Security & Privacy -> Reveal Secret Recovery Phrase (then derive private key)
+
+**ADVISORY:** Use a segregated wallet for field operations. Never expose your primary vault.
+
+#### Method B: Forge New Identity (CLI)
+
+Generate a fresh identity using Foundry's cast tool:
+
+```bash
+cast wallet new
+```
+
+This outputs both address and private key. Copy the private key (hex format) to your `.env` file.
+
+#### Method C: Simulation Mode (Base Sepolia)
+
+For training without financial risk:
+1. Create a burner wallet (Method B).
+2. Request ETH from Base Sepolia Faucet: https://www.alchemy.com/faucets/base-sepolia
+3. Request USDC assets: https://faucet.circle.com/
+
 ---
 
-## 🛠️ Technical Schematics
+## Technical Schematics
 
 ### Validation Sequence (The "Audit")
 
 1.  **Target Validation:** Agent verifies URL is a valid HTTP/HTTPS target.
-2.  **Recon (Initial Request):** Agent pokes the bear.
-3.  **Challenge (402 Response):** Bear roars back with price tags.
-4.  **Fabrication (Payment Creation):** Agent signs the check (cryptographically).
-5.  **Authorization (Retry):** Agent walks back in, flashing the badge (`Authorization` header).
-6.  **Verification (Delivery):** Door opens. Information flows.
+2.  **Network Selection:** Agent loads the appropriate wallet (SVM or EVM) based on `--network` flag.
+3.  **Recon (Initial Request):** Agent pokes the bear.
+4.  **Challenge (402 Response):** Bear roars back with price tags.
+5.  **Network Compatibility Check:** Agent verifies server requirements match the selected network.
+6.  **Fabrication (Payment Creation):** Agent signs the check (cryptographically).
+7.  **Authorization (Retry):** Agent walks back in, flashing the badge (`Authorization` header).
+8.  **Verification (Delivery):** Door opens. Information flows.
 
 ### Security Measures
 
@@ -199,18 +293,29 @@ For training without financial risk:
 - Dangerous protocols (`file://`, `javascript://`, `data://`) are rejected immediately.
 - Malformed URLs trigger mission abort with helpful error messages.
 
+**Network Enforcement:**
+- The `--network` flag is mandatory to prevent accidental mainnet transactions.
+- Network mismatch between client and server triggers immediate mission abort.
+- Mainnet operations require interactive confirmation.
+
 **Error Response Examples:**
 ```text
-❌ CRITICAL FAILURE: Invalid protocol detected.
+CRITICAL FAILURE: Invalid protocol detected.
    Expected: http:// or https://
    Received: file:
-   Example: npm start http://localhost:3000/answer
+   Example: npm start http://localhost:3000/answer --network solana
 ```
 
 ```text
-❌ CRITICAL FAILURE: Malformed URL provided.
+CRITICAL FAILURE: Malformed URL provided.
    Target: not-a-valid-url
-   Example: npm start http://localhost:3000/answer
+   Example: npm start http://localhost:3000/answer --network solana
+```
+
+```text
+CRITICAL FAILURE: --network flag is REQUIRED.
+   Valid options: solana-mainnet, solana, base-mainnet, base
+   Example: npm start http://localhost:3000/answer --network solana
 ```
 
 ### Performance Instrumentation
@@ -224,20 +329,28 @@ For training without financial risk:
 | Code | Status | Triggers |
 |------|--------|----------|
 | `0` | Success | API responded with 2xx after payment |
-| `1` | Failure | Invalid URL, missing credentials, payment error, server rejection, user abort |
+| `1` | Failure | Invalid URL, missing credentials, payment error, server rejection, user abort, network mismatch |
 
 ### Approved Gadgetry (Dependencies)
 
+**Solana (SVM) Networks:**
 - `@x402/fetch` - Automated infiltration client
 - `@x402/svm` - Solana payment protocol implementation
 - `@solana/web3.js` v2 - Blockchain interface
 - `@solana/signers` - Cryptographic signing tools
 
+**Base (EVM) Networks:**
+- `@x402/fetch` - Automated infiltration client
+- `@x402/evm` - EVM payment protocol implementation
+- `viem` - TypeScript interface for Ethereum
+
 ---
 
-## 🧪 Training Simulations (Local APIs)
+## Training Simulations (Local APIs)
 
 Ideal for training against the Deep Thought API:
+
+### Solana Network Training
 
 1.  **Spin up the Target (API Server):**
     ```bash
@@ -249,24 +362,46 @@ Ideal for training against the Deep Thought API:
     ```bash
     # In a new terminal
     cd tools/007-test-agent
-    npm start http://localhost:3000/answer
+    npm start http://localhost:3000/answer --network solana
     ```
+
+### Base Network Training
+
+1.  **Spin up the Target (API Server configured for Base):**
+    ```bash
+    cd examples/nodejs/deep-thought-api
+    # Ensure the API is configured for Base network
+    npm run dev
+    ```
+
+2.  **Deploy the Agent:**
+    ```bash
+    # In a new terminal
+    cd tools/007-test-agent
+    npm start http://localhost:3000/answer --network base
+    ```
+
+### Testing POST Requests
+
+```bash
+npm start http://localhost:3000/ask '{"question":"What is the meaning of life?"}' --network solana
+```
 
 ---
 
-## 🔒 Security Clearance Levels
+## Security Clearance Levels
 
 - **.env FILE:** CI/Top Secret. Contains raw private keys. Do not commit.
 - **WALLETS:** Use "Burner" classification only. Minimal funds recommended.
-- **MAINNET:** Live fire exercise. Real assets will be expended.
+- **MAINNET:** Live fire exercise. Real assets will be expended. Requires confirmation.
 - **DEVNET:** Simulation. Unlimited retry attempts.
 
 ---
 
-## 📝 License
+## License
 
 Apache 2.0 - Open Source Intelligence (OSINT).
 
-## 🤝 Alliance
+## Alliance
 
 Part of the [API Paywall Cookbook](https://github.com/kobaru/api-paywall-cookbook). Reinforcements welcome.

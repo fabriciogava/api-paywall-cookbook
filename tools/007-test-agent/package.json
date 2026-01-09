@@ -5,7 +5,10 @@
     "type": "module",
     "scripts": {
         "start": "tsx src/index.ts",
-        "test": "npm start",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:ui": "vitest --ui",
+        "test:coverage": "vitest run --coverage",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
@@ -13,13 +16,18 @@
         "@solana/kit": "^0.0.0-experimental",
         "@solana/signers": "^5.1.0",
         "@solana/web3.js": "^2.0.0",
+        "@x402/evm": "^2.1.0",
         "@x402/fetch": "^2.1.0",
         "@x402/svm": "^2.1.0",
-        "dotenv": "^16.3.1"
+        "dotenv": "^16.3.1",
+        "viem": "^2.44.0"
     },
     "devDependencies": {
         "@types/node": "^20.10.6",
+        "@vitest/coverage-v8": "^4.0.16",
+        "@vitest/ui": "^4.0.16",
         "tsx": "^4.7.0",
-        "typescript": "^5.3.3"
+        "typescript": "^5.3.3",
+        "vitest": "^4.0.16"
     }
 }
