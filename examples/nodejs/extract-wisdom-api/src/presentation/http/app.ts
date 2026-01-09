@@ -68,6 +68,17 @@ app.use("*", async (c, next) => {
     const { method, url } = c.req;
     console.log(`[INFO] Incoming Request: ${method} ${url}`);
 
+    if (method === "POST" || method === "PUT") {
+        try {
+            // Clone the request to read body without consuming it if necessary, 
+            // though Hono's req.json() is cached.
+            const body = await c.req.json();
+            console.log(`[INFO] Request Body:`, JSON.stringify(body, null, 2));
+        } catch (e) {
+            // Ignore body parsing errors (might be empty or not JSON)
+        }
+    }
+
     await next();
 
     const duration = Date.now() - start;
@@ -213,6 +224,8 @@ app.post(
     async (c) => {
         try {
             const { url, language } = await c.req.json();
+
+            console.log("[INFO] Payment Approved");
 
             // Validate and normalize URL (double-check in case of edge cases)
             const sanitizedUrl = validateAndNormalizeYouTubeUrl(url);

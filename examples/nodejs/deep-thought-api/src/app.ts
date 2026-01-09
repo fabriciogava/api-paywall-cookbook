@@ -84,7 +84,7 @@ export function createApp(config: AppConfig) {
 
     // Then, create the server that handles payment logic
     const resourceServer = new x402ResourceServer(facilitatorClient);
-    
+
     // We start building the accepted payment options
     const paymentOptions: any[] = [];
 
@@ -97,6 +97,12 @@ export function createApp(config: AppConfig) {
             network: NETWORK_ID,
             asset: ASSET_ADDRESS,
             payTo: config.solanaWalletAddress,
+            maxTimeoutSeconds: 300,
+            extra: {
+                feePayer: config.solanaWalletAddress,
+                name: "USDC",
+                version: "2"
+            }
         });
     }
 
@@ -109,6 +115,11 @@ export function createApp(config: AppConfig) {
             network: BASE_NETWORK_ID,
             asset: BASE_ASSET_ADDRESS,
             payTo: config.baseWalletAddress,
+            maxTimeoutSeconds: 300,
+            extra: {
+                name: "USDC",
+                version: "2"
+            }
         });
     }
 
@@ -116,6 +127,9 @@ export function createApp(config: AppConfig) {
     if (paymentOptions.length === 0) {
         throw new Error("At least one wallet address (Solana or Base) must be configured.");
     }
+
+    // DEBUG: Log payment options to see what's being configured
+    console.log("🔍 DEBUG: Payment Options:", JSON.stringify(paymentOptions, null, 2));
 
     // 4. Define Your Paywall Rules
     // This object maps your API endpoints to their price tags.
@@ -130,6 +144,42 @@ export function createApp(config: AppConfig) {
             mimeType: "application/json",
         },
     };
+
+    // DEBUG: Log all incoming requests
+    app.use("*", async (c, next) => {
+        const requestId = crypto.randomUUID();
+        const prefix = `[${requestId}]`;
+
+        console.log(`${prefix} ➡️  Incoming ${c.req.method} ${c.req.url}`);
+
+        // Log Headers
+        console.log(`${prefix} 📝 Headers:`, JSON.stringify(c.req.header(), null, 2));
+
+        // Log Body if present
+        const contentType = c.req.header("content-type");
+        if (contentType && (contentType.includes("application/json") || contentType.includes("text/plain"))) {
+            try {
+                // Clone the request to read body without consuming it for the next middleware
+                const body = await c.req.raw.clone().text();
+                console.log(`${prefix} 📦 Request Body:`, body);
+            } catch (e) {
+                console.log(`${prefix} ⚠️  Could not read request body:`, e);
+            }
+        }
+
+        await next();
+
+        console.log(`${prefix} ⬅️  Response status: ${c.res.status}`);
+
+        // Log Response Body
+        // We need to clone the response to read it, but be careful with streams
+        try {
+            const resBody = await c.res.clone().text();
+            console.log(`${prefix} 📤 Response Body:`, resBody.substring(0, 1000)); // Limit log size
+        } catch (e) {
+            console.log(`${prefix} ⚠️  Could not read response body (might be a stream or empty)`);
+        }
+    });
 
     // 5. Apply the Guard (Middleware)
     // "paymentMiddleware" sits in front of your routes and handles the entire x402 flow:

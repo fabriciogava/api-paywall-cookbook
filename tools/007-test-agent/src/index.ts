@@ -139,11 +139,39 @@ async function main() {
         console.log(`\n📨 OUTGOING HTTP REQUEST`);
         console.log(`   ➡️  ${method} ${url}`);
         if (init?.headers) {
-            const headers = init.headers as Record<string, string>;
-            if (headers['Authorization']) {
-                console.log(`   🔑 Header [Authorization]: ${headers['Authorization'].substring(0, 50)}... (truncated)`);
+            // Handle all possible header formats
+            let authHeader: string | null = null;
+            const h = init.headers;
+
+            if (h instanceof Headers) {
+                authHeader = h.get('authorization') || h.get('Authorization');
+            } else if (Array.isArray(h)) {
+                const found = h.find(([key]) => key.toLowerCase() === 'authorization');
+                if (found) authHeader = found[1];
+            } else {
+                // Record<string, string> - check both cases
+                authHeader = (h as Record<string, string>)['authorization'] ||
+                    (h as Record<string, string>)['Authorization'];
+            }
+
+            if (authHeader) {
+                console.log(`   🔑 Header [Authorization]: ${authHeader.substring(0, 50)}... (truncated)`);
                 logExplanation("Notice the Authorization header is now attached! We are flashing our badge.");
             }
+
+            // Log all headers for debugging
+            console.log(`   📋 All Request Headers:`);
+            if (h instanceof Headers) {
+                h.forEach((value, key) => console.log(`      • ${key}: ${value.substring(0, 80)}${value.length > 80 ? '...' : ''}`));
+            } else if (Array.isArray(h)) {
+                h.forEach(([key, value]) => console.log(`      • ${key}: ${value.substring(0, 80)}${value.length > 80 ? '...' : ''}`));
+            } else {
+                Object.entries(h as Record<string, string>).forEach(([key, value]) =>
+                    console.log(`      • ${key}: ${value.substring(0, 80)}${value.length > 80 ? '...' : ''}`)
+                );
+            }
+        } else {
+            console.log(`   📋 No headers present in request`);
         }
 
         const start = performance.now();
