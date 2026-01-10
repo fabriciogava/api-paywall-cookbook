@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - FACILITATOR_URL=https://gateway.kobaru.io
+      - BASE_WALLET_ADDRESS=${BASE_WALLET_ADDRESS}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    env_file:
+      - ../../.env

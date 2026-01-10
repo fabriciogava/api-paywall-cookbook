@@ -47,8 +47,10 @@ api-paywall-cookbook/
 │   │   ├── deep-thought-api/      # Reference implementation (Hono + x402)
 │   │   ├── extract-wisdom-api/    # AI-powered YouTube wisdom extraction
 │   │   └── ...
+│   ├── go/
+│   │   ├── vulcan-logic-api/      # Production-ready Go implementation (Gin + x402)
+│   │   └── ...
 │   ├── python/                    # Coming soon
-│   ├── go/                        # Coming soon
 │   └── advanced/                  # Coming soon
 ├── tools/
 │   └── 007-test-agent/            # Universal x402 API testing tool
@@ -63,7 +65,7 @@ api-paywall-cookbook/
 
 - A [Kobaru account](https://kobaru.io/signup) (or self-hosted facilitator)
 - A wallet with funds on a supported blockchain (Base, Solana, etc.)
-- Node.js 18+, Python 3.10+, or Go 1.21+ (depending on the example)
+- Node.js 18+, Python 3.10+, or Go 1.23+ (depending on the example)
 
 ### Quick Start
 
@@ -116,6 +118,7 @@ All cookbook examples are deployed to production. You can test them directly:
 |-----|-------------|-------|---------|
 | 🧠 Deep Thought API | The Answer to Life, Universe, and Everything | $0.001 | Solana |
 | 🧙 Extract Wisdom API | AI-powered wisdom extraction from YouTube videos | Dynamic (per token) | Solana |
+| 🖖 Vulcan Logic API | Logical advice from Mr. Spock (AI-powered) | $0.001 | Base Sepolia |
 
 *More APIs coming soon!*
 
@@ -128,21 +131,21 @@ All cookbook examples are deployed to production. You can test them directly:
 | Language | Examples | Status |
 |----------|----------|--------|
 | **Node.js** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
+| **Go** | [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
 | **Python** | FastAPI, Flask | 🔜 Coming Soon |
-| **Go** | Standard library, Gin | 🔜 Coming Soon |
 
 ### By Blockchain
 
 | Network | Examples | Status |
 |---------|----------|--------|
 | **Solana** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
-| **Base** | [Deep Thought API](examples/nodejs/deep-thought-api) | ✅ Available |
+| **Base** | [Deep Thought API](examples/nodejs/deep-thought-api), [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
 
 ### By Complexity
 
 | Level | Description | Examples |
 |-------|-------------|----------|
-| 🟢 **Beginner** | Simple single-endpoint APIs | [Deep Thought API](examples/nodejs/deep-thought-api) |
+| 🟢 **Beginner** | Simple single-endpoint APIs | [Deep Thought API](examples/nodejs/deep-thought-api), [Vulcan Logic API](examples/go/vulcan-logic-api) |
 | 🟡 **Intermediate** | Dynamic pricing, external integrations | [Extract Wisdom API](examples/nodejs/extract-wisdom-api) |
 | 🔴 **Advanced** | Sessions, subscriptions, streaming | Coming Soon |
 
