@@ -39,11 +39,11 @@ Every query triggers a cascade of mathematical operations: Base-29 encoding, lar
 
 This makes the Oracle an ideal candidate for **microtransaction monetization via x402**. Each request consumes measurable computational resources, and each response delivers genuine, reproducible value. The economics are transparent: you pay for the computation, you receive the coordinates.
 
-**Why Rust?** When your business model is heavely dependent on CPU cycles, efficiency is revenue. Rust's zero-cost abstractions and lack of garbage collection mean more computations per watt, lower latency per request, and higher throughput per dollar. For an AaaS, the choice of language directly impacts profitability.
+**Why Rust?** When your business model is heavily dependent on CPU cycles, efficiency is revenue. Rust's zero-cost abstractions and lack of garbage collection mean more computations per watt, lower latency per request, and higher throughput per dollar. For an AaaS, the choice of language directly impacts profitability.
 
 ---
 
-## �️ Prerequisites (Your Keys to the Labyrinth)
+## 🔑 Prerequisites (Your Keys to the Labyrinth)
 
 Before you may enter:
 - **Rust 1.70+** — The language of systems, forged for eternity ([rustup.rs](https://rustup.rs))
@@ -51,7 +51,7 @@ Before you may enter:
 
 ---
 
-## � Entering the Library
+## 🚪 Entering the Library
 
 ### Step I: Prepare the Environment
 
@@ -260,7 +260,7 @@ And there it shall be—your text, surrounded by 3157 characters of cosmic noise
 
 ---
 
-## �️ The Oracle's Pathways
+## 🗺️ The Oracle's Pathways
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -426,7 +426,7 @@ The tests verify:
 
 ---
 
-## � Further Reading
+## 📚 Further Reading
 
 - [Library of Babel Theory](https://libraryofbabel.info/theory.html) — Jonathan Basile's mathematical foundations
 - [API Paywall Cookbook](../../../README.md) — Additional patterns for building paid APIs
