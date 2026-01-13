@@ -1,0 +1,53 @@
+[package]
+name = "oracle-of-babel"
+version = "0.1.0"
+edition = "2021"
+description = "The Oracle of Babel - A deterministic Library of Babel implementation"
+license = "Apache-2.0"
+authors = ["Kobaru Gateway <hello@kobaru.io>"]
+
+[lib]
+name = "oracle_of_babel"
+path = "src/lib.rs"
+
+[[bin]]
+name = "standalone"
+path = "deploy/standalone/main.rs"
+
+[dependencies]
+# Web framework
+actix-web = "4"
+actix-rt = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Big integer arithmetic
+num-bigint = "0.4"
+num-traits = "0.2"
+num-integer = "0.1"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Environment
+dotenvy = "0.15"
+
+# Async runtime (for standalone)
+tokio = { version = "1", features = ["full"] }
+
+# x402 payment support
+reqwest = { version = "0.12", features = ["json"] }
+base64 = "0.22"
+futures-util = "0.3"
+thiserror = "2.0.17"
+
+[dev-dependencies]
+actix-rt = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"

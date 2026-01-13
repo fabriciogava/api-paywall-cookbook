@@ -118,6 +118,7 @@ All cookbook examples are deployed to production. You can test them directly:
 |-----|-------------|-------|---------|
 | 🧠 Deep Thought API | The Answer to Life, Universe, and Everything | $0.001 | Solana |
 | 🧙 Extract Wisdom API | AI-powered wisdom extraction from YouTube videos | Dynamic (per token) | Solana |
+| 🔮 Oracle of Babel | Infinite Library of Babel (Deterministic) | $0.001 | Solana |
 | 🖖 Vulcan Logic API | Logical advice from Mr. Spock (AI-powered) | $0.001 | Base Sepolia |
 
 *More APIs coming soon!*
@@ -132,13 +133,14 @@ All cookbook examples are deployed to production. You can test them directly:
 |----------|----------|--------|
 | **Node.js** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
 | **Go** | [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
+| **Rust** | [Oracle of Babel](examples/rust/oracle-of-babel) | ✅ Available |
 | **Python** | FastAPI, Flask | 🔜 Coming Soon |
 
 ### By Blockchain
 
 | Network | Examples | Status |
 |---------|----------|--------|
-| **Solana** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
+| **Solana** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api), [Oracle of Babel](examples/rust/oracle-of-babel) | ✅ Available |
 | **Base** | [Deep Thought API](examples/nodejs/deep-thought-api), [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
 
 ### By Complexity
@@ -147,7 +149,7 @@ All cookbook examples are deployed to production. You can test them directly:
 |-------|-------------|----------|
 | 🟢 **Beginner** | Simple single-endpoint APIs | [Deep Thought API](examples/nodejs/deep-thought-api), [Vulcan Logic API](examples/go/vulcan-logic-api) |
 | 🟡 **Intermediate** | Dynamic pricing, external integrations | [Extract Wisdom API](examples/nodejs/extract-wisdom-api) |
-| 🔴 **Advanced** | Sessions, subscriptions, streaming | Coming Soon |
+| 🔴 **Advanced** | Manual protocol, complex logic | [Oracle of Babel](examples/rust/oracle-of-babel) |
 
 ---
 
