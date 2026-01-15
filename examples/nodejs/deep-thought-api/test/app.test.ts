@@ -1,5 +1,41 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import { createApp } from "../src/app";
+
+// Mock @x402/core/server to provide getSupported response
+vi.mock("@x402/core/server", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@x402/core/server")>();
+    return {
+        ...actual,
+        HTTPFacilitatorClient: class {
+            constructor() { }
+            async getSupported() {
+                return {
+                    kinds: [
+                        {
+                            network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+                            extra: {
+                                asset: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+                                name: "USDC",
+                                version: "2",
+                                decimals: 6
+                            }
+                        },
+                        {
+                            network: "eip155:84532",
+                            extra: {
+                                asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                                name: "USDC",
+                                version: "2",
+                                decimals: 6
+                            }
+                        }
+                    ],
+                    signers: {}
+                };
+            }
+        }
+    };
+});
 
 // Mock @x402/hono to bypass payment validation logic
 vi.mock("@x402/hono", async (importOriginal) => {
@@ -27,7 +63,11 @@ describe("Deep Thought API", () => {
         facilitatorUrl: "https://mock-facilitator.com",
     };
 
-    const app = createApp(config);
+    let app: Awaited<ReturnType<typeof createApp>>;
+
+    beforeAll(async () => {
+        app = await createApp(config);
+    });
 
     it("should return 200 OK for health check", async () => {
         const res = await app.request("/health");

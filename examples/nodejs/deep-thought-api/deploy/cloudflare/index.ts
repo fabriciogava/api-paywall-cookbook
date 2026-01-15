@@ -21,7 +21,8 @@ export default {
     // The fetch handler is the entry point for every request
     async fetch(request: Request, env: Env): Promise<Response> {
         // Initialize the app with the variables from the current request environment
-        const app = createApp({
+        // Note: createApp is async because it fetches asset metadata from the facilitator
+        const app = await createApp({
             solanaWalletAddress: env.SOLANA_WALLET_ADDRESS,
             baseWalletAddress: env.BASE_WALLET_ADDRESS,
             facilitatorUrl: env.FACILITATOR_URL,

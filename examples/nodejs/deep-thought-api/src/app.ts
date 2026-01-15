@@ -48,6 +48,7 @@ const NETWORK_ID = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1" as const;
 // You MUST change this to the Base Mainnet identifier:
 // "eip155:8453"
 const BASE_NETWORK_ID = "eip155:84532" as const;
+//const BASE_NETWORK_ID = "eip155:8453" as const;
 
 // ⚠️ USDC on Devnet ⚠️
 // This is the address for the content USDC token on the Solana Devnet.
@@ -65,12 +66,94 @@ const ASSET_ADDRESS = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 // "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 const BASE_ASSET_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
+
+/**
+ * Asset metadata from the facilitator's /supported endpoint.
+ * Contains everything needed to construct proper payment options:
+ * - name/version: For EIP-712 domain separator (signature verification)
+ * - decimals: For converting human-readable prices to atomic units
+ */
+interface AssetMetadata {
+    name: string;
+    version: string;
+    decimals: number;
+}
+
+/**
+ * Fetches asset metadata from the facilitator's /supported endpoint.
+ * This is critical for:
+ * 1. EIP-712 domain name (different chains use different names)
+ * 2. Token decimals (for price conversion to atomic units)
+ */
+async function getAssetMetadata(
+    facilitatorClient: HTTPFacilitatorClient,
+    networkId: string,
+    assetAddress: string
+): Promise<AssetMetadata> {
+    try {
+        const supported = await facilitatorClient.getSupported();
+
+        // Find the network entry that matches our network and asset address
+        // The facilitator returns: { kinds: [{ network, extra: { asset, name, version, decimals } }] }
+        const networkData = supported.kinds?.find(
+            (kind: any) => kind.network === networkId &&
+                kind.extra?.asset?.toLowerCase() === assetAddress.toLowerCase()
+        );
+
+        if (networkData?.extra) {
+            const { name, version, decimals } = networkData.extra;
+            console.log(`📝 Found asset metadata for ${networkId}: name="${name}", version="${version || "2"}", decimals=${decimals || 6}`);
+            return {
+                name: (name as string) || "USDC",
+                version: (version as string) || "2",
+                decimals: (decimals as number) || 6
+            };
+        }
+
+        console.warn(`⚠️ No asset metadata found for ${networkId}/${assetAddress}, using defaults`);
+    } catch (error) {
+        console.warn(`⚠️ Failed to fetch asset metadata from facilitator:`, error);
+    }
+
+    // Fallback defaults (USDC standard: 6 decimals)
+    return { name: "USDC", version: "2", decimals: 6 };
+}
+
+/**
+ * Converts a human-readable price (e.g., "$0.001" or "0.001") to atomic units.
+ * 
+ * @param priceString - Price like "$0.001" or "0.001"  
+ * @param decimals - Token decimals (e.g., 6 for USDC)
+ * @returns Atomic units as string (e.g., "1000" for $0.001 USDC)
+ * 
+ * @example
+ * priceToAtomicUnits("$0.001", 6) // "1000"
+ * priceToAtomicUnits("1.50", 6)   // "1500000"
+ */
+function priceToAtomicUnits(priceString: string, decimals: number): string {
+    // Remove $ prefix if present
+    const cleanPrice = priceString.replace(/^\$/, '');
+    const price = parseFloat(cleanPrice);
+
+    if (isNaN(price)) {
+        throw new Error(`Invalid price format: ${priceString}`);
+    }
+
+    // Convert to atomic units: price * 10^decimals
+    // Use Math.round to handle floating point precision issues
+    const atomicUnits = Math.round(price * Math.pow(10, decimals));
+    return atomicUnits.toString();
+}
+
 /**
  * Creates the Deep Thought API application.
  * This function follows the Factory Pattern - it builds and returns the app
  * based on the configuration you provide. This makes testing nice and easy!
+ * 
+ * Note: This is async because it needs to fetch asset metadata from the facilitator
+ * to get the correct EIP-712 domain name for each blockchain.
  */
-export function createApp(config: AppConfig) {
+export async function createApp(config: AppConfig) {
     // 1. Initialize the web server
     const app = new Hono();
 
@@ -90,6 +173,9 @@ export function createApp(config: AppConfig) {
 
     // Check if Solana is enabled
     if (config.solanaWalletAddress) {
+        // Fetch the correct asset metadata from facilitator
+        const solanaAssetMeta = await getAssetMetadata(facilitatorClient, NETWORK_ID, ASSET_ADDRESS);
+
         resourceServer.register(NETWORK_ID, new ExactSvmScheme());
         paymentOptions.push({
             scheme: "exact" as const,
@@ -100,26 +186,41 @@ export function createApp(config: AppConfig) {
             maxTimeoutSeconds: 300,
             extra: {
                 feePayer: config.solanaWalletAddress,
-                name: "USDC",
-                version: "2"
+                name: solanaAssetMeta.name,
+                version: solanaAssetMeta.version
             }
         });
     }
 
-    // Check if Base is enabled
+    // Check if EVM chain is enabled (Base, SKALE, or any other EVM chain)
     if (config.baseWalletAddress) {
+        // Fetch the correct asset metadata from facilitator
+        // This is critical for chains like SKALE which use different token names
+        const evmAssetMeta = await getAssetMetadata(facilitatorClient, BASE_NETWORK_ID, BASE_ASSET_ADDRESS);
+
         resourceServer.register(BASE_NETWORK_ID, new ExactEvmScheme());
+
+        // The price we want to charge (human-readable)
+        const PRICE = "$0.001";
+
+        // Use AssetAmount format for universal EVM chain compatibility.
+        // This bypasses the SDK's internal chain lookup (getDefaultAsset),
+        // which only works for chains defined in viem.
+        // With this format, ANY EVM chain works as long as the facilitator supports it.
         paymentOptions.push({
             scheme: "exact" as const,
-            price: "$0.001",
+            price: {
+                amount: priceToAtomicUnits(PRICE, evmAssetMeta.decimals),
+                asset: BASE_ASSET_ADDRESS,
+                extra: {
+                    name: evmAssetMeta.name,
+                    version: evmAssetMeta.version
+                }
+            },
             network: BASE_NETWORK_ID,
             asset: BASE_ASSET_ADDRESS,
             payTo: config.baseWalletAddress,
             maxTimeoutSeconds: 300,
-            extra: {
-                name: "USDC",
-                version: "2"
-            }
         });
     }
 

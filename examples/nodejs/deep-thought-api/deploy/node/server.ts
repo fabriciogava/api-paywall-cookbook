@@ -13,30 +13,32 @@ import { createApp } from "../../src/app";
 // 1. Load configuration from environment variables
 // Always separate secrets (like wallet addresses) from code!
 const config = {
-    solanaWalletAddress: process.env.SOLANA_WALLET_ADDRESS,
-    baseWalletAddress: process.env.BASE_WALLET_ADDRESS,
-    // You can host your own facilitator or use the public one from Kobaru
-    facilitatorUrl: process.env.FACILITATOR_URL || "https://gateway.kobaru.io",
+  solanaWalletAddress: process.env.SOLANA_WALLET_ADDRESS,
+  baseWalletAddress: process.env.BASE_WALLET_ADDRESS,
+  // You can host your own facilitator or use the public one from Kobaru
+  facilitatorUrl: process.env.FACILITATOR_URL || "https://gateway.kobaru.io",
 };
 
 // 2. Validate essential configuration
 // We fail fast (exit immediately) if both wallet addresses are missing.
 // It's better to crash on startup than to run without receiving payments!
 if (!config.solanaWalletAddress && !config.baseWalletAddress) {
-    console.error("❌ At least one wallet address is required");
-    console.error("   Set SOLANA_WALLET_ADDRESS and/or BASE_WALLET_ADDRESS in your .env file");
-    process.exit(1);
+  console.error("❌ At least one wallet address is required");
+  console.error("   Set SOLANA_WALLET_ADDRESS and/or BASE_WALLET_ADDRESS in your .env file");
+  process.exit(1);
 }
 
-// 3. Create the application instance
+// 3. Create the application instance (async)
 // This is where we inject our dependencies (the config)
-const app = createApp(config);
+// Note: createApp is async because it fetches asset metadata from the facilitator
+async function main() {
+  const app = await createApp(config);
 
-// 4. Determine the port
-// Cloud platforms usually provide a PORT specific to the environment
-const port = parseInt(process.env.PORT || "3000", 10);
+  // 4. Determine the port
+  // Cloud platforms usually provide a PORT specific to the environment
+  const port = parseInt(process.env.PORT || "3000", 10);
 
-console.log(`
+  console.log(`
 🧠 Deep Thought API
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -54,10 +56,13 @@ console.log(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 
-// 5. Start the server
-// The 'serve' function from @hono/node-server is a lightweight wrapper
-// around Node's native http.createServer.
-serve({
+  // 5. Start the server
+  // The 'serve' function from @hono/node-server is a lightweight wrapper
+  // around Node's native http.createServer.
+  serve({
     fetch: app.fetch,
     port,
-});
+  });
+}
+
+main().catch(console.error);
