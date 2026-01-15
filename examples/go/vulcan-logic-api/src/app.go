@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	x402 "github.com/coinbase/x402/go"
@@ -40,6 +41,31 @@ type AdviceRequest struct {
 // AdviceResponse represents Spock's answer
 type AdviceResponse struct {
 	Advice string `json:"advice"`
+}
+
+// getAssetMetadata fetches token name and version from the facilitator.
+// Returns error if facilitator doesn't support the network/asset.
+func getAssetMetadata(ctx context.Context, client *x402http.HTTPFacilitatorClient, networkID, assetAddress string) (name, version string, err error) {
+	supported, err := client.GetSupported(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch facilitator data: %w", err)
+	}
+
+	// Find matching network and asset
+	for _, kind := range supported.Kinds {
+		if string(kind.Network) == networkID {
+			if assetVal, _ := kind.Extra["asset"].(string); strings.EqualFold(assetVal, assetAddress) {
+				name, _ = kind.Extra["name"].(string)
+				version, _ = kind.Extra["version"].(string)
+				if name == "" || version == "" {
+					return "", "", fmt.Errorf("facilitator missing name/version for %s", networkID)
+				}
+				return name, version, nil
+			}
+		}
+	}
+
+	return "", "", fmt.Errorf("facilitator doesn't support network %s with asset %s", networkID, assetAddress)
 }
 
 // CreateApp creates and configures the Gin engine
@@ -82,6 +108,27 @@ func CreateApp(config AppConfig) *gin.Engine {
 		return r
 	}
 
+	// Setup Facilitator Client (needed before routes for asset metadata)
+	facilitatorURL := config.FacilitatorURL
+	if facilitatorURL == "" {
+		facilitatorURL = "https://gateway.kobaru.io"
+	}
+	facilitatorClient := x402http.NewHTTPFacilitatorClient(&x402http.FacilitatorConfig{
+		URL: facilitatorURL,
+	})
+
+	// Fetch asset metadata from facilitator for EIP-712 signatures
+	// If facilitator doesn't support this network/asset, the app cannot function
+	assetName, assetVersion, err := getAssetMetadata(ctx, facilitatorClient, BaseNetworkID, BaseAssetAddress)
+	if err != nil {
+		log.Printf("❌ Cannot start: %v", err)
+		r.GET("/health", func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "misconfigured", "error": err.Error()})
+		})
+		return r
+	}
+	log.Printf("✅ Asset metadata: name=%q, version=%q", assetName, assetVersion)
+
 	// Define x402 Routes Configuration
 	routesConfig := x402http.RoutesConfig{
 		"POST /advice": {
@@ -91,7 +138,9 @@ func CreateApp(config AppConfig) *gin.Engine {
 				PayTo:   config.BaseWalletAddress,
 				Price:   AdvicePrice,
 				Extra: map[string]interface{}{
-					"asset": BaseAssetAddress,
+					"asset":   BaseAssetAddress,
+					"name":    assetName,    // From facilitator
+					"version": assetVersion, // From facilitator
 				},
 			}},
 			Description: "Logical advice from Mr. Spock",
@@ -100,17 +149,6 @@ func CreateApp(config AppConfig) *gin.Engine {
 	}
 
 	// Create x402 Middleware
-	// We use PaymentMiddlewareFromConfig which internally creates the resource server
-	// and handles the x402 protocol flow (402 Payment Required, Verification, etc.)
-	facilitatorURL := config.FacilitatorURL
-	if facilitatorURL == "" {
-		facilitatorURL = "https://gateway.kobaru.io"
-	}
-
-	// Facilitator client
-	facilitatorClient := x402http.NewHTTPFacilitatorClient(&x402http.FacilitatorConfig{
-		URL: facilitatorURL,
-	})
 
 	// Create x402 Middleware with graceful error handling
 	// We disable SyncFacilitatorOnStart to prevent crashing if the facilitator returns malformed data
