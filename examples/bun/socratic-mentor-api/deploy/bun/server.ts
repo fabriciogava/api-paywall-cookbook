@@ -1,0 +1,28 @@
+import { createApp } from "../../src/app.js";
+
+const config = {
+  skaleWalletAddress: process.env.SKALE_WALLET_ADDRESS,
+  skaleNetworkId: process.env.SKALE_NETWORK_ID || "eip155:324705682", // Default to Testnet
+  skaleAssetAddress: process.env.SKALE_ASSET_ADDRESS || "0x2e08028E3C4c2356572E096d8EF835cD5C6030bD", // Default to USDC Testnet
+  facilitatorUrl: process.env.FACILITATOR_URL || "https://gateway.kobaru.io",
+  googleApiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  dbPath: process.env.DB_PATH || "socratic.db"
+};
+
+const app = await createApp(config);
+const port = parseInt(process.env.PORT || "3000", 10);
+
+console.log(`
+🎓 Socratic Mentor API (Bun Runtime)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Server: http://localhost:${port}
+  Runtime: Bun v${Bun.version}
+  Wallet: ${config.skaleWalletAddress || "(not set)"}
+  Gateway: ${config.facilitatorUrl}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`);
+
+export default {
+  port,
+  fetch: app.fetch,
+};

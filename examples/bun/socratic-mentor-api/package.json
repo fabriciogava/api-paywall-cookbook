@@ -1,0 +1,39 @@
+{
+    "name": "socratic-mentor-api",
+    "version": "1.0.0",
+    "description": "A Socratic AI Tutor monetized via x402 protocol using Vercel AI SDK (Bun)",
+    "type": "module",
+    "scripts": {
+        "test": "bun test",
+        "dev": "bun run --watch deploy/bun/server.ts",
+        "start": "bun run deploy/bun/server.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "keywords": [
+        "x402",
+        "micropayments",
+        "ai",
+        "hono",
+        "vercel-ai-sdk",
+        "socratic",
+        "bun"
+    ],
+    "author": "Kobaru.io",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "@ai-sdk/google": "^1.1.0",
+        "@x402/core": "^2.1.0",
+        "@x402/evm": "^2.1.0",
+        "@x402/hono": "^2.1.0",
+        "ai": "^4.1.0",
+        "dotenv": "^17.2.3",
+        "hono": "^4.11.3",
+        "uuid": "^13.0.0",
+        "zod": "^3.24.1"
+    },
+    "devDependencies": {
+        "@types/bun": "^1.1.0",
+        "@types/uuid": "^11.0.0",
+        "typescript": "^5.7.3"
+    }
+}

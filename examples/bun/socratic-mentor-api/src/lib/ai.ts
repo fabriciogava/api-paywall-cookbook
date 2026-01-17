@@ -1,0 +1,66 @@
+import { generateObject } from "ai";
+import { google } from "@ai-sdk/google";
+import { z } from "zod";
+import { SOCRATIC_SYSTEM_PROMPT } from "./prompt.js";
+
+// Define the schema for the AI's response
+export const ResponseSchema = z.object({
+  reply: z.string().describe("The Socratic helpful response to the student."),
+  context_state: z.string().describe("A compressed summary of the conversation state to remember for next time. Update this based on the new interaction."),
+  main_goal: z.string().describe("The pinned main goal of the student. Infer it if missing, or update if it changes."),
+});
+
+export type SocraticResponse = z.infer<typeof ResponseSchema>;
+
+/**
+ * Generates a Socratic response using Google's Gemini model.
+ */
+export async function generateSocraticResponse(
+  userMessage: string,
+  history: Array<{ role: 'user' | 'model', content: string }>,
+  summary: string,
+  mainGoal: string,
+  apiKey?: string
+): Promise<SocraticResponse> {
+  // We allow passing the API key, or rely on process.env.GOOGLE_GENERATIVE_AI_API_KEY
+  // The google provider automatically picks up the env var if not passed explicitly,
+  // but explicitly setting it helps with strict configuration management if we wrapped it.
+
+  // Use a specific model version. 2.5-flash is stable and fast.
+  const MODEL = google("gemini-2.5-flash");
+
+  // Format history for the prompt context (not as chat messages yet, but as a block context)
+  // We want to force the 'stateful' behavior so we feed everything as context
+  const historyText = history.map(h => `${h.role.toUpperCase()}: ${h.content}`).join("\n");
+
+  const inputPrompt = `
+    [Student's Main Goal]:
+    "${mainGoal || "(Unset - Please Infer)"}"
+
+    [Conversation Summary]:
+    "${summary || "(No previous summary)"}"
+
+    [Recent History]:
+    ${historyText || "(No recent history)"}
+
+    [Current Student Input]:
+    "${userMessage}"
+  `;
+
+  console.log("--- [GEMINI REQUEST] ---");
+  console.log(inputPrompt);
+  console.log("------------------------");
+
+  const result = await generateObject({
+    model: MODEL,
+    schema: ResponseSchema,
+    system: SOCRATIC_SYSTEM_PROMPT,
+    prompt: inputPrompt,
+  });
+
+  console.log("--- [GEMINI RESPONSE] ---");
+  console.log(JSON.stringify(result.object, null, 2));
+  console.log("-------------------------");
+
+  return result.object;
+}
