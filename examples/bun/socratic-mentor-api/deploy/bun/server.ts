@@ -9,8 +9,21 @@ const config = {
   dbPath: process.env.DB_PATH || "socratic.db"
 };
 
-const app = await createApp(config);
+const { app, shutdown } = await createApp(config);
 const port = parseInt(process.env.PORT || "3000", 10);
+
+// Graceful shutdown handlers
+process.on("SIGTERM", () => {
+  console.log("Received SIGTERM, shutting down...");
+  shutdown();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  console.log("Received SIGINT, shutting down...");
+  shutdown();
+  process.exit(0);
+});
 
 console.log(`
 🎓 Socratic Mentor API (Bun Runtime)
@@ -26,3 +39,4 @@ export default {
   port,
   fetch: app.fetch,
 };
+

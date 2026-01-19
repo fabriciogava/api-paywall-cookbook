@@ -4,6 +4,7 @@ import { createApp } from "../src/app.js";
 // Mocks configuration in module scope
 // Stateful mock for StateManager
 const mockStore = new Map();
+const mockBalances = new Map<string, bigint>();
 
 mock.module("../src/lib/state", () => ({
     createStateManager: () => ({
@@ -31,7 +32,25 @@ mock.module("../src/lib/state", () => ({
                 updated_at: new Date().toISOString()
             });
         },
-        prune: () => 0
+        prune: () => 0,
+        getBalance: (walletAddress: string) => {
+            // Return stored balance or default to rich (1000000n) for tests to pass
+            return mockBalances.get(walletAddress) ?? 1000000n;
+        },
+        adjustBalance: (walletAddress: string, delta: bigint) => {
+            const current = mockBalances.get(walletAddress) ?? 1000000n;
+            mockBalances.set(walletAddress, current + delta);
+        },
+        deductBalance: (walletAddress: string, amount: bigint) => {
+            const current = mockBalances.get(walletAddress) ?? 1000000n;
+            if (current >= amount) {
+                mockBalances.set(walletAddress, current - amount);
+                return true;
+            }
+            return false;
+        },
+        getPayment: () => null,
+        recordPayment: () => { }
     }),
 }));
 
@@ -72,6 +91,10 @@ mock.module("@x402/hono", () => {
         x402ResourceServer: class {
             constructor(client: any) { }
             register() { return this; }
+            async verifyPayment(payload: any, requirements: any) {
+                // Mock verification - always succeeds for testing
+                return { isValid: true };
+            }
         },
         HonoAdapter: class {
             constructor(public c: any) { }
@@ -123,13 +146,67 @@ mock.module("@x402/hono", () => {
 
 mock.module("@x402/core/server", () => ({
     HTTPFacilitatorClient: class {
-        async getSupported() { return { kinds: [] }; }
+        async getSupported() { return { kinds: [{ network: "eip155:324705682", extra: { decimals: 6, name: "USDC", version: "1" } }] }; }
     }
 }));
 
 mock.module("@x402/core/utils", () => ({
     safeBase64Decode: (str: string) => JSON.stringify({ token: "mock", from: "0xTestUser" }),
     safeBase64Encode: (str: string) => str
+}));
+
+// Mock @x402/core/http for decodePaymentSignatureHeader
+mock.module("@x402/core/http", () => ({
+    encodePaymentRequiredHeader: (pr: any) => JSON.stringify(pr),
+    decodePaymentRequiredHeader: (str: string) => JSON.parse(str),
+    decodePaymentSignatureHeader: (header: string) => {
+        // Parse the header to extract wallet info for testing
+        // Reject invalid tokens
+        if (header === "invalid_token") {
+            throw new Error("Invalid payment signature");
+        }
+
+        // In tests, we pass wallet tokens directly, not base64 encoded
+        // Try to extract wallet from the header
+        if (header.startsWith("wallet_")) {
+            const walletAddress = "0x" + header.replace("wallet_", "");
+            return {
+                x402Version: 2,
+                payload: {
+                    authorization: {
+                        from: walletAddress,
+                        value: 1000000 // Default test amount (1 USDC)
+                    },
+                    signature: "0xtest_signature"
+                },
+                accepted: {
+                    scheme: "exact",
+                    network: "eip155:324705682",
+                    amount: "1000000",
+                    asset: "0xUSDC",
+                    payTo: "0x123"
+                }
+            };
+        }
+        // For other tokens, return a default test payload
+        return {
+            x402Version: 2,
+            payload: {
+                authorization: {
+                    from: "0xTestUser",
+                    value: 1000000
+                },
+                signature: "0xtest_signature"
+            },
+            accepted: {
+                scheme: "exact",
+                network: "eip155:324705682",
+                amount: "1000000",
+                asset: "0xUSDC",
+                payTo: "0x123"
+            }
+        };
+    }
 }));
 
 describe("Socratic Mentor API Integration", () => {
@@ -145,10 +222,12 @@ describe("Socratic Mentor API Integration", () => {
 
     beforeEach(() => {
         mockStore.clear();
+        mockBalances.clear();
     });
 
     beforeAll(async () => {
-        app = await createApp(config);
+        const result = await createApp(config);
+        app = result.app;
     });
 
     it("should return health check", async () => {
@@ -168,6 +247,14 @@ describe("Socratic Mentor API Integration", () => {
         const data = await res.json();
         expect(data.accepts).toBeDefined();
         expect(data.accepts.length).toBeGreaterThan(0);
+
+        // Verify x402-balance extension is present
+        expect(data.extensions).toBeDefined();
+        expect(data.extensions["x402-balance"]).toBeDefined();
+        expect(data.extensions["x402-balance"].info.supportsTopup).toBe(true);
+        expect(data.extensions["x402-balance"].info.supportsBalance).toBe(true);
+        expect(data.extensions["x402-balance"].info.identityMechanism).toBe("previous-proof");
+        expect(data.extensions["x402-balance"].schema).toBeDefined();
     });
 
     it("should return 400 for invalid input (missing message)", async () => {
@@ -188,7 +275,7 @@ describe("Socratic Mentor API Integration", () => {
             headers: {
                 "Content-Type": "application/json",
                 // "valid_mock_token" is considered valid by our mock
-                "Authorization": "Bearer valid_mock_token"
+                "PAYMENT-SIGNATURE": "valid_mock_token"
             }
         });
 
@@ -214,7 +301,10 @@ describe("Socratic Mentor API Integration", () => {
         });
         expect(res.status).toBe(400);
         const data = await res.json();
-        expect(data.error).toBe("Invalid session_id format");
+        expect(data.error).toBe("Invalid Input");
+        expect(data.details).toBeDefined();
+        // Verify that the validation error is for session_id
+        expect(data.details.some((d: any) => d.path === "session_id")).toBe(true);
     });
 
     it("should return 402 if payment verification fails (invalid token)", async () => {
@@ -223,7 +313,7 @@ describe("Socratic Mentor API Integration", () => {
             body: JSON.stringify({ message: "Hello" }),
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer invalid_token"
+                "PAYMENT-SIGNATURE": "invalid_token"
             }
         });
         expect(res.status).toBe(402);
@@ -240,7 +330,7 @@ describe("Socratic Mentor API Integration", () => {
             }),
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer valid_mock_token"
+                "PAYMENT-SIGNATURE": "valid_mock_token"
             }
         });
 
@@ -256,7 +346,7 @@ describe("Socratic Mentor API Integration", () => {
             body: JSON.stringify({ message: "Test message" }),
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer wallet_abc123"
+                "PAYMENT-SIGNATURE": "wallet_abc123"
             }
         });
 
@@ -273,7 +363,7 @@ describe("Socratic Mentor API Integration", () => {
             body: JSON.stringify({ message: "First message" }),
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer valid_mock_token"
+                "PAYMENT-SIGNATURE": "valid_mock_token"
             }
         });
 
@@ -295,7 +385,7 @@ describe("Socratic Mentor API Integration", () => {
             }),
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer valid_mock_token"
+                "PAYMENT-SIGNATURE": "valid_mock_token"
             }
         });
 
@@ -317,7 +407,7 @@ describe("Socratic Mentor API Integration", () => {
             headers: {
                 "Content-Type": "application/json",
                 // Mock will extract wallet: 0xAlice
-                "Authorization": "Bearer wallet_Alice"
+                "PAYMENT-SIGNATURE": "wallet_Alice"
             }
         });
         expect(resAlice.status).toBe(200);
@@ -329,7 +419,7 @@ describe("Socratic Mentor API Integration", () => {
             headers: {
                 "Content-Type": "application/json",
                 // Mock will extract wallet: 0xBob
-                "Authorization": "Bearer wallet_Bob"
+                "PAYMENT-SIGNATURE": "wallet_Bob"
             }
         });
         expect(resBob.status).toBe(200);

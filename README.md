@@ -47,6 +47,8 @@ api-paywall-cookbook/
 │   │   ├── deep-thought-api/      # Reference implementation (Hono + x402)
 │   │   ├── extract-wisdom-api/    # AI-powered YouTube wisdom extraction
 │   │   └── ...
+│   ├── bun/
+│   │   └── socratic-mentor-api/   # Advanced: mini-ledger, optimistic flow, Socratic AI
 │   ├── go/
 │   │   ├── vulcan-logic-api/      # Production-ready Go implementation (Gin + x402)
 │   │   └── ...
@@ -120,6 +122,7 @@ All cookbook examples are deployed to production. You can test them directly:
 | 🧙 Extract Wisdom API | AI-powered wisdom extraction from YouTube videos | Dynamic (per token) | Solana |
 | 🔮 Oracle of Babel | Infinite Library of Babel (Deterministic) | $0.001 | Solana |
 | 🖖 Vulcan Logic API | Logical advice from Mr. Spock (AI-powered) | $0.001 | Base Sepolia |
+| 🎓 Socratic Mentor API | AI tutor using the Socratic method + mini-ledger | Dynamic | SKALE |
 
 *More APIs coming soon!*
 
@@ -132,6 +135,7 @@ All cookbook examples are deployed to production. You can test them directly:
 | Language | Examples | Status |
 |----------|----------|--------|
 | **Node.js** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
+| **Bun** | [Socratic Mentor API](examples/bun/socratic-mentor-api) | ✅ Available |
 | **Go** | [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
 | **Rust** | [Oracle of Babel](examples/rust/oracle-of-babel) | ✅ Available |
 | **Python** | FastAPI, Flask | 🔜 Coming Soon |
@@ -149,7 +153,7 @@ All cookbook examples are deployed to production. You can test them directly:
 |-------|-------------|----------|
 | 🟢 **Beginner** | Simple single-endpoint APIs | [Deep Thought API](examples/nodejs/deep-thought-api), [Vulcan Logic API](examples/go/vulcan-logic-api) |
 | 🟡 **Intermediate** | Dynamic pricing, external integrations | [Extract Wisdom API](examples/nodejs/extract-wisdom-api) |
-| 🔴 **Advanced** | Manual protocol, complex logic | [Oracle of Babel](examples/rust/oracle-of-babel) |
+| 🔴 **Advanced** | Mini-ledger, optimistic flow, custom payment handling | [Oracle of Babel](examples/rust/oracle-of-babel), [Socratic Mentor API](examples/bun/socratic-mentor-api) |
 
 ---
 

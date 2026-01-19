@@ -1,16 +1,66 @@
 import { Hono } from "hono";
 import { v7 } from "uuid";
 import { z } from "zod";
-import { x402ResourceServer, x402HTTPResourceServer, HonoAdapter } from "@x402/hono";
+import { x402ResourceServer, x402HTTPResourceServer } from "@x402/hono";
+import { encodePaymentRequiredHeader, decodePaymentSignatureHeader } from "@x402/core/http";
 import { StateManager } from "../lib/state.js";
-import { calculatePrice, priceToAtomicUnits, formatPrice, MAX_HISTORY_MESSAGE_CHARS } from "../lib/pricing.js";
+import { calculatePrice, priceToAtomicUnits, formatPrice, MAX_HISTORY_MESSAGE_CHARS, MAX_HISTORY_MESSAGES, truncateHistoryMessage } from "../lib/pricing.js";
 import { generateSocraticResponse } from "../lib/ai.js";
 import { AppConfig } from "../app.js";
+import { AskRequestSchema, validateSignatureHash } from "../lib/validation.js";
+import { Errors } from "../lib/errors.js";
+
+/**
+ * x402-balance extension per x402 v2 spec.
+ * Advertises balance management capabilities to machine clients.
+ */
+const X402_BALANCE_EXTENSION = {
+    "x402-balance": {
+        info: {
+            supportsTopup: true,
+            supportsBalance: true,
+            identityMechanism: "previous-proof",
+            description: "This API manages an internal balance. Overpayments are credited. Reuse your payment proof (signature) in subsequent requests for identity verification."
+        },
+        schema: {
+            type: "object",
+            properties: {
+                supportsTopup: { type: "boolean", description: "API credits overpayments to user balance" },
+                supportsBalance: { type: "boolean", description: "API maintains per-user balance ledger" },
+                identityMechanism: { type: "string", enum: ["previous-proof"], description: "How to identify returning users" },
+                description: { type: "string", description: "Human-readable explanation" }
+            }
+        }
+    }
+};
 
 /**
  * Creates the /ask route with all dependencies injected.
  * Uses manual payment verification with async settlement for faster response times.
  */
+/**
+ * Helper to decode x402 header safely and extract signature.
+ * Validates the signature to prevent injection attacks.
+ */
+function getSignatureFromHeader(header: string): string | null {
+    if (!header || !header.startsWith("x402 ")) return null;
+    try {
+        const token = header.split(" ")[1];
+        const json = JSON.parse(atob(token));
+        const proof = json.proof || null;
+
+        // Validate signature format to prevent injection
+        if (proof) {
+            validateSignatureHash(proof);
+        }
+
+        return proof;
+    } catch (e) {
+        // Invalid signature format or validation failed
+        return null;
+    }
+}
+
 export function createAskRoute(
     config: AppConfig,
     stateManager: StateManager,
@@ -20,10 +70,11 @@ export function createAskRoute(
     const app = new Hono();
 
     // Define payment-protected route config
-    const getPaymentOptions = (priceAtomic: string, priceFormatted: string) => [{
+    // We now accept an exact price for the "Deficit"
+    const getPaymentOptions = (deficitAtomic: string, deficitFormatted: string) => [{
         scheme: "exact" as const,
         price: {
-            amount: priceAtomic,
+            amount: deficitAtomic,
             asset: config.skaleAssetAddress || "0xUSDC",
             extra: {
                 name: assetMetadata.name,
@@ -34,107 +85,250 @@ export function createAskRoute(
         asset: config.skaleAssetAddress || "0xUSDC",
         payTo: config.skaleWalletAddress as string,
         maxTimeoutSeconds: 300,
-        description: `Socratic Consultation (${priceFormatted})`
+        description: `Socratic Consultation (${deficitFormatted})`
     }];
 
     app.post("/", async (c) => {
-        console.log(`[${new Date().toISOString()}] [Ask] Received request`);
+        const requestId = (c.get("requestId") as string) || "unknown";
+        console.log(`[${new Date().toISOString()}] [${requestId}] [Ask] Received request`);
 
-        // A. Parse Body & Calculate Price
+        // ---------------------------------------------------------
+        // 1. Parse Body, Validate & Sanitize Input (Security Protection)
+        // ---------------------------------------------------------
         let body;
         try {
             body = await c.req.json();
         } catch (e) {
-            return c.json({ error: "Invalid JSON body" }, 400);
+            return Errors.invalidJson(c);
         }
 
-        const inputSchema = z.object({
-            message: z.string(),
-            session_id: z.string().optional(),
-            main_goal: z.string().optional()
-        });
-
-        const parsed = inputSchema.safeParse(body);
+        // Validate and sanitize all user inputs using Zod schema
+        // This prevents SQL injection, prompt injection, XSS, and other attacks
+        const parsed = AskRequestSchema.safeParse(body);
         if (!parsed.success) {
-            if (body && !body.message && body.main_goal) return c.json({ error: "Invalid Input" }, 400);
-            return c.json({ error: "Invalid Input" }, 400);
+            console.log(`[${new Date().toISOString()}] [Ask] Validation failed:`, parsed.error.errors);
+            return Errors.invalidInput(c, parsed.error.errors.map(e => ({ path: e.path.join('.'), message: e.message })));
         }
 
+        // All inputs are now validated and sanitized
         const { message, session_id, main_goal } = parsed.data;
 
-        if (session_id && !z.string().uuid().safeParse(session_id).success) {
-            return c.json({ error: "Invalid session_id format" }, 400);
+        // Calculate Price on ACTUAL body
+        const price = calculatePrice(message);
+        const priceAtomic = BigInt(priceToAtomicUnits(price, assetMetadata.decimals));
+
+        console.log(`[${new Date().toISOString()}] [Ask] Required Price: ${formatPrice(price)} (${priceAtomic} atomic units)`);
+
+
+        // ---------------------------------------------------------
+        // 2. Identify User & Determine Payment Status
+        // ---------------------------------------------------------
+
+        let walletAddress: string | null = null;
+        let newPaymentAmount = 0n;
+        let paymentPayload: any = null;
+        let paymentRequirements: any = null;
+        let signatureHash: string | null = null;
+
+        const authHeader = c.req.header("Authorization");
+        const paymentSignatureHeader = c.req.header("payment-signature") || c.req.header("PAYMENT-SIGNATURE");
+        const signature = authHeader ? getSignatureFromHeader(authHeader) : null;
+
+        // Log raw headers for testing/debugging
+        if (authHeader) {
+            console.log(`[${new Date().toISOString()}] [Ask] Authorization Header (for curl testing): ${authHeader}`);
+        }
+        if (paymentSignatureHeader) {
+            console.log(`[${new Date().toISOString()}] [Ask] PAYMENT-SIGNATURE Header (extracted or direct): ${paymentSignatureHeader}`);
         }
 
-        // B. Pricing Logic
-        // Note: For pricing, we can't identify the user yet (wallet is in paymentPayload after verification)
-        // Uses DEFAULT_PRICING_CONFIG from pricing.ts (adjust constants there to change pricing)
-        let state = { history: [] as Array<{ role: 'user' | 'model', content: string }>, main_goal: main_goal || "General Socratic Inquiry", context_state: "" };
+        // A. Check Ledger (Identity Path)
+        if (signature) {
+            // Use signature as hash/key directly
+            signatureHash = signature;
+            const existingPayment = stateManager.getPayment(signatureHash);
 
-        const price = calculatePrice(message); // Uses DEFAULT_PRICING_CONFIG
-        const priceAtomic = priceToAtomicUnits(price, assetMetadata.decimals);
-        const priceFormatted = formatPrice(price);
-        console.log(`[${new Date().toISOString()}] [Ask] Price calculated: ${priceFormatted} (${priceAtomic} atomic units)`);
-        const paymentOptions = getPaymentOptions(priceAtomic, priceFormatted);
+            if (existingPayment) {
+                console.log(`[${new Date().toISOString()}] [Ask] Known signature. Wallet: ${existingPayment.wallet_address}`);
+                walletAddress = existingPayment.wallet_address;
+                // It's an old payment, so it contributes 0 to "New Payment Amount"
+                // But it identifies the user, allowing access to their Balance.
+            }
+        }
 
-        // C. Create HTTP Resource Server for manual verification
+        // B. Check Facilitator (New Payment Path)
+        // If we haven't identified via ledger, verify the payment with the facilitator.
+        // We decode the payment upfront and verify directly using the payment's `accepted` requirements,
+        // which allows overpayments (amount > required) to work correctly.
+
+        if (!walletAddress && paymentSignatureHeader) {
+            console.log(`[${new Date().toISOString()}] [Ask] Signature not in ledger. Verifying with Facilitator...`);
+
+            try {
+                // Decode the payment payload from the PAYMENT-SIGNATURE header
+                const decodedPayload = decodePaymentSignatureHeader(paymentSignatureHeader);
+                const acceptedRaw = (decodedPayload as any).accepted;
+
+                if (acceptedRaw) {
+                    // Normalize all numeric fields that facilitator expects as strings
+                    const normalizedAccepted = {
+                        ...acceptedRaw,
+                        amount: String(acceptedRaw.amount)
+                    };
+
+                    // Also normalize payload.authorization.value
+                    const rawPayload = (decodedPayload as any).payload || {};
+                    const rawAuth = rawPayload.authorization || {};
+                    const normalizedPayload = {
+                        ...decodedPayload as any,
+                        accepted: normalizedAccepted,
+                        payload: {
+                            ...rawPayload,
+                            authorization: {
+                                ...rawAuth,
+                                value: String(rawAuth.value || "0")
+                            }
+                        }
+                    };
+
+                    // Verify using normalized payload and requirements
+                    const verifyResult = await resourceServer.verifyPayment(normalizedPayload, normalizedAccepted);
+
+                    if (verifyResult.isValid) {
+                        console.log(`[${new Date().toISOString()}] [Ask] Payment verified successfully via Facilitator.`);
+                        paymentPayload = normalizedPayload;
+                        paymentRequirements = normalizedAccepted;
+
+                        // Extract wallet and amount - x402 v2 uses "value" in authorization
+                        walletAddress = (decodedPayload as any)?.payload?.authorization?.from;
+                        const paidAmountStr = (decodedPayload as any)?.payload?.authorization?.value || "0";
+                        newPaymentAmount = BigInt(paidAmountStr);
+
+                        // Get signature hash to save later
+                        try {
+                            signatureHash = (decodedPayload as any)?.payload?.signature;
+                            if (signatureHash) {
+                                validateSignatureHash(signatureHash);
+                            }
+                        } catch (e) {
+                            console.error("Invalid signature hash format:", e);
+                            signatureHash = null;
+                        }
+
+                        console.log(`[${new Date().toISOString()}] [Ask] Payment Verified. Wallet: ${walletAddress}, Amount: ${newPaymentAmount}`);
+                    } else {
+                        console.log(`[${new Date().toISOString()}] [Ask] Facilitator verification failed: ${verifyResult.invalidReason}`);
+                    }
+                } else {
+                    console.log(`[${new Date().toISOString()}] [Ask] Payment payload missing 'accepted' requirements.`);
+                }
+            } catch (e) {
+                console.error(`[${new Date().toISOString()}] [Ask] Error decoding/verifying payment:`, e);
+            }
+        } else if (!walletAddress) {
+            console.log(`[${new Date().toISOString()}] [Ask] No payment signature provided.`);
+        }
+
+
+        // Initialize HTTP Server for settlement (needed later for async settlement)
         const httpServer = new x402HTTPResourceServer(resourceServer, {
             "POST /ask": {
-                accepts: paymentOptions,
+                accepts: getPaymentOptions(priceAtomic.toString(), formatPrice(price)),
                 description: "Socratic Consultation",
                 mimeType: "application/json"
             }
         });
         await httpServer.initialize();
 
-        // D. Manually verify payment
-        const adapter = new HonoAdapter(c);
-        const result = await httpServer.processHTTPRequest({
-            adapter,
-            path: "/ask",
-            method: "POST",
-            paymentHeader: c.req.header("Authorization")
-        });
+        // ---------------------------------------------------------
+        // 3. Balance Checks & "Partial" Reservation
+        // ---------------------------------------------------------
 
-        // Handle non-payment or payment error cases
-        if (result.type === "no-payment-required") {
-            // This endpoint requires payment, shouldn't happen
-            return c.json({ error: "Unexpected state" }, 500);
+        // We determine how much of the Cost must come from the EXISTING balance.
+        // If New Payment >= Price, we need 0 from balance.
+        // If New Payment < Price, we need the difference.
+
+        const amountFromBalance = priceAtomic > newPaymentAmount
+            ? priceAtomic - newPaymentAmount
+            : 0n;
+
+        // Reserve the required amount from balance
+        if (amountFromBalance > 0n) {
+            if (!walletAddress || !stateManager.deductBalance(walletAddress, amountFromBalance)) {
+                // Insufficient Funds in Balance to cover the difference
+                console.log(`[${new Date().toISOString()}] [Ask] Insufficient funds. Balance Cover Needed: ${amountFromBalance}`);
+
+                // For 402, we calculate Total Deficit
+                // Deficit = Price - (Balance + NewPayment)
+                // We know (Balance < amountFromBalance), and amountFromBalance = Price - NewPayment
+                // So Balance < Price - NewPayment
+                // Balance + NewPayment < Price.
+                // Deficit is positive.
+
+                const currentBalance = walletAddress ? stateManager.getBalance(walletAddress) : 0n;
+                const totalAvailable = currentBalance + newPaymentAmount;
+                const deficit = priceAtomic - totalAvailable;
+
+                // Format deficit
+                const deficitSafe = deficit > 0n ? deficit : priceAtomic;
+                const deficitFloat = Number(deficitSafe) / Math.pow(10, assetMetadata.decimals);
+                const options = getPaymentOptions(deficitSafe.toString(), formatPrice(deficitFloat));
+
+                // Build x402 v2 compliant PaymentRequired response
+                const paymentRequired = {
+                    x402Version: 2 as const,
+                    error: "Insufficient Balance",
+                    resource: {
+                        url: c.req.url,
+                        description: "Socratic Consultation",
+                        mimeType: "application/json"
+                    },
+                    accepts: options.map(opt => ({
+                        scheme: opt.scheme,
+                        network: opt.network,
+                        amount: opt.price.amount,
+                        asset: opt.asset,
+                        payTo: opt.payTo,
+                        maxTimeoutSeconds: opt.maxTimeoutSeconds,
+                        extra: opt.price.extra
+                    })),
+                    extensions: X402_BALANCE_EXTENSION
+                };
+
+                console.log(`[${new Date().toISOString()}] [Ask] Returning 402 Response:`, JSON.stringify(paymentRequired, null, 2));
+
+                // Set PAYMENT-REQUIRED header (x402 v2 spec)
+                c.header("PAYMENT-REQUIRED", encodePaymentRequiredHeader(paymentRequired));
+
+                return c.json(paymentRequired, 402 as any);
+            }
         }
 
-        if (result.type === "payment-error") {
-            // Set headers from the response (required for client SDK compatibility)
-            const { response } = result;
-            Object.entries(response.headers).forEach(([key, value]) => {
-                c.header(key, value);
-            });
-            // Return 402 with payment options
-            return c.json(response.body, response.status as any);
-        }
+        // At this point:
+        // 1. We have reserved `amountFromBalance` (if any) from the internal ledger.
+        // 2. We have a "Promise" of `newPaymentAmount` (if any) to cover the rest/add surplus.
 
-        // Payment verified! Now process AI response
-        console.log(`[${new Date().toISOString()}] [Ask] Payment Verified. Processing AI Response...`);
-        const { paymentPayload, paymentRequirements } = result;
+        // ---------------------------------------------------------
+        // 4. Render Service (Optimistic)
+        // ---------------------------------------------------------
 
-        // Extract wallet address from payment payload
-        const walletAddress = (paymentPayload as any)?.payload?.authorization?.from || "anonymous";
-        console.log(`[${new Date().toISOString()}] [Ask] Wallet: ${walletAddress}`);
+        console.log(`[${new Date().toISOString()}] [Ask] Payment Validated (Balance Reserved: ${amountFromBalance}, Pending Settlement: ${newPaymentAmount}). Processing...`);
 
+        // Load Context
+        let state = { history: [] as Array<{ role: 'user' | 'model', content: string }>, main_goal: main_goal || "General Socratic Inquiry", context_state: "" };
         let currentSessionId = session_id || v7();
 
-        // Now load context with proper wallet:session key
-        if (session_id) {
+        if (session_id && walletAddress) {
             const contextKey = `${walletAddress}:${session_id}`;
-            console.log(`[${new Date().toISOString()}] [Ask] Loading context for key: ${contextKey}`);
             const loaded = stateManager.get(contextKey);
             if (loaded) {
                 state = loaded as any;
-                console.log(`[${new Date().toISOString()}] [Ask] Context loaded. History length: ${state.history?.length || 0}, Context: ${state.context_state?.substring(0, 50) || '(empty)'}`);
+                console.log(`[${new Date().toISOString()}] [Ask] Loaded Existing Session Context: ${contextKey}`);
             } else {
-                console.log(`[${new Date().toISOString()}] [Ask] No context found for key.`);
+                console.log(`[${new Date().toISOString()}] [Ask] Session ID provided but not found for wallet. Starting new context: ${contextKey}`);
             }
         } else {
-            console.log(`[${new Date().toISOString()}] [Ask] No session_id provided, starting fresh context.`);
+            console.log(`[${new Date().toISOString()}] [Ask] New Session Created: ${currentSessionId}`);
         }
 
         try {
@@ -146,50 +340,94 @@ export function createAskRoute(
                 config.googleApiKey
             );
 
-            const newMainGoal = aiResponse.main_goal || state.main_goal || main_goal;
-
-            // Truncate messages to prevent large history from causing unprofitable carry-forward
-            const truncate = (text: string) =>
-                text.length > MAX_HISTORY_MESSAGE_CHARS
-                    ? text.slice(0, MAX_HISTORY_MESSAGE_CHARS) + "..."
-                    : text;
-
+            // Update History logic...
             const newHistory = [
                 ...(state.history || []),
-                { role: "user" as const, content: truncate(message) },
-                { role: "model" as const, content: truncate(aiResponse.reply) }
-            ].slice(-6);
+                { role: "user" as const, content: truncateHistoryMessage(message) },
+                { role: "model" as const, content: truncateHistoryMessage(aiResponse.reply) }
+            ].slice(-MAX_HISTORY_MESSAGES);
 
-            const contextKey = `${walletAddress}:${currentSessionId}`;
-            console.log(`[${new Date().toISOString()}] [Ask] Saving context for key: ${contextKey}, History length: ${newHistory.length}`);
+            // Save Context
+            if (walletAddress) {
+                const contextKey = `${walletAddress}:${currentSessionId}`;
+                await stateManager.save(contextKey, aiResponse.context_state, newHistory, aiResponse.main_goal || state.main_goal);
+            }
 
-            await stateManager.save(contextKey, aiResponse.context_state, newHistory, newMainGoal);
+            // ---------------------------------------------------------
+            // 5. Async Settlement & Surplus Credit
+            // ---------------------------------------------------------
 
-            console.log(`[${new Date().toISOString()}] [Ask] Payment success. Returning response for session: ${currentSessionId}, wallet: ${walletAddress}`);
+            if (walletAddress && newPaymentAmount > 0n && paymentPayload) {
+                // We handle settlement in the background to avoid blocking the response.
+                // We logic: If settlement succeeds, we credit the SURPLUS.
+                // Surplus = NewPayment - Cost_Covered_By_Payment
+                // We know Cost = priceAtomic.
+                // Cost_Covered_By_Payment = min(newPayment, price).
+                // So Surplus = max(0, newPayment - price).
 
-            // E. Settle payment ASYNCHRONOUSLY - don't await!
-            // This allows the response to return immediately while settlement happens in background
-            httpServer.processSettlement(paymentPayload, paymentRequirements)
-                .then((settleResult) => {
-                    if (!settleResult.success) {
-                        console.error(`[${new Date().toISOString()}] [Ask] Settlement failed:`, settleResult.errorReason);
-                    } else {
-                        console.log(`[${new Date().toISOString()}] [Ask] Settlement completed successfully`);
-                    }
-                })
-                .catch((err) => {
-                    console.error(`[${new Date().toISOString()}] [Ask] Settlement error:`, err);
-                });
+                const surplusToCredit = newPaymentAmount > priceAtomic
+                    ? newPaymentAmount - priceAtomic
+                    : 0n;
 
-            // Return response immediately - client gets it before settlement completes!
+                console.log(`[${new Date().toISOString()}] [Ask] Triggering Async Settlement for ${newPaymentAmount}...`);
+
+                httpServer.processSettlement(paymentPayload, paymentRequirements || {})
+                    .then((settlement) => {
+                        if (settlement.success) {
+                            console.log(`[${new Date().toISOString()}] [Ask] Settlement Successful.`);
+                            // Record Payment
+                            if (signatureHash) stateManager.recordPayment(signatureHash, walletAddress!);
+
+                            // Credit Surplus ONLY
+                            if (surplusToCredit > 0n) {
+                                stateManager.adjustBalance(walletAddress!, surplusToCredit);
+                                console.log(`[${new Date().toISOString()}] [Ask] Credited Surplus: ${surplusToCredit}`);
+                            }
+                        } else {
+                            console.error(`[${new Date().toISOString()}] [${requestId}] [Ask] Settlement Failed`, {
+                                wallet: walletAddress,
+                                signatureHash,
+                                amount: newPaymentAmount.toString(),
+                                timestamp: new Date().toISOString(),
+                                reason: "Settlement returned success: false"
+                            });
+                            // We do NOT credit. 
+                            // We accepted the risk of the service cost (implied by "Optimistic").
+                            // But we specifically do NOT credit the surplus, preventing fake balance.
+                        }
+                    })
+                    .catch(err => {
+                        console.error(`[${new Date().toISOString()}] [${requestId}] [Ask] Settlement Error`, {
+                            wallet: walletAddress,
+                            signatureHash,
+                            amount: newPaymentAmount.toString(),
+                            timestamp: new Date().toISOString(),
+                            error: err.message || String(err)
+                        });
+                    });
+            }
+
+            // Current Balance for Header
+            // We can't include the "Pending Surplus" because it's not settled.
+            // We can include the "Remaining Balance" (Current - Deducted).
+            // This is accurate to what is available RIGHT NOW.
+
+            const remainingBalance = walletAddress ? stateManager.getBalance(walletAddress) : 0n;
+            c.header("X-Balance-Remaining", remainingBalance.toString());
+
             return c.json({
                 reply: aiResponse.reply,
                 session_id: currentSessionId
             });
 
-        } catch (e: any) {
+        } catch (e) {
+            // If we reserved from balance, we should refund.
+            if (amountFromBalance > 0n && walletAddress) {
+                stateManager.adjustBalance(walletAddress, amountFromBalance);
+                console.log(`[${new Date().toISOString()}] [Ask] Refunded ${amountFromBalance} to ${walletAddress} due to AI service error.`);
+            }
             console.error("AI Service Error:", e);
-            return c.json({ error: "AI Service Unavailable" }, 500);
+            return Errors.aiUnavailable(c);
         }
     });
 

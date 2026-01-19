@@ -58,6 +58,13 @@ const MINIMUM_PRICE = 0.000001; // $0.000001 = 1 atomic unit (smallest USDC tran
  */
 export const MAX_HISTORY_MESSAGE_CHARS = 500;
 
+/**
+ * Maximum number of messages (user + model pairs) to keep in history.
+ * Used in .slice(-N) to retain the most recent messages.
+ * Adjust ESTIMATED_INPUT_TOKENS if you change this.
+ */
+export const MAX_HISTORY_MESSAGES = 6;
+
 // =============================================================================
 // Exported default pricing config
 // =============================================================================
@@ -115,4 +122,17 @@ export function priceToAtomicUnits(price: number, decimals: number): string {
  */
 export function formatPrice(price: number): string {
     return `$${price.toFixed(6)}`; // 6 decimal places is standard for USDC micropayments
+}
+
+/**
+ * Truncates a message to the maximum allowed history message length.
+ * Prevents large messages from causing unprofitable carry-forward costs.
+ * 
+ * @param text - The message text to truncate
+ * @returns Truncated text with ellipsis if needed
+ */
+export function truncateHistoryMessage(text: string): string {
+    return text.length > MAX_HISTORY_MESSAGE_CHARS
+        ? text.slice(0, MAX_HISTORY_MESSAGE_CHARS) + "..."
+        : text;
 }

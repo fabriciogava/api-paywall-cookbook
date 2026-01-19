@@ -1,101 +1,114 @@
-# Socratic Mentor API (Bun Edition)
+# Socratic Mentor API
 
-A wise Socratic AI tutor that helps you find the answer yourself, monetized via the **x402 protocol**. This example allows you to run a **High-Performance** version of the API using the **Bun** runtime.
+*I possess no wisdom... but those who associate with me discover within themselves many fair things."* — Socrates (via Plato, Theaetetus)
 
-## Features
+A wise AI tutor that guides you to discover answers through thoughtful questions—monetized via the **x402 protocol**.
 
-- **Socratic Method**: Uses a specialized system prompt to guide users rather than giving direct answers.
-- **Paywall Integration**: Native x402 protocol support for micropayments via SKALE (or other EVM chains).
-- **Stateful Conversations**: Maintains conversation context and "Main Goal" tracking using SQLite.
-- **Dynamic Pricing**: Calculates price based on input length using `bun:sqlite` for state management.
-- **High Performance**: Built on Bun + Hono for low-latency responses.
+> Some say AI makes people dumber by providing ready answers. We use the ancient **Socratic Method** to fix that.
 
-## Tech Stack
 
-- **Runtime**: [Bun](https://bun.sh) (v1.1+)
-- **Framework**: [Hono](https://hono.dev)
-- **Payments**: x402 SDK v2
-- **AI**: Vercel AI SDK (Google Gemini)
-- **Database**: `bun:sqlite` (Native, fast SQLite)
+> [!WARNING]
+> **Friedrich Nietzsche does not endorse or approve this project.**
+>
+> By automating the Socratic Method, this API empowers the **Theoretical Man** at the expense of the **Dionysian spirit**. To Nietzsche, joy springs from instinct and chaos, not from the cold logic of an algorithm.
+>
+> Consequently, this project is a monument to the 'Tyranny of Reason.' If you believe that `Reason == Virtue == Happiness`, you are in the right place. But if you prefer the dangerous passion of life over the suffocating net of dialectics, turn back now. You have been warned!
 
-## Prerequisites
+---
 
-- Bun v1.1.0 or higher
-- A Google AI Studio API Key
-- An EVM Wallet (public address only) to receive payments
+## The Path to Wisdom
 
-## Setup
+*False words are not only evil in themselves, but they infect the soul with evil.* — Socrates (via Plato, Phaedo)
 
-1. **Install Dependencies**:
-   ```bash
-   bun install
-   ```
+This high-performance API uses the **Bun** runtime to deliver a Socratic teaching experience. Instead of giving direct answers, it asks probing questions that guide users toward understanding.
 
-2. **Configure Environment**:
-   Copy `.env.example` to `.env` and fill in your details:
-   ```bash
-   cp .env.example .env
-   ```
-   
-   See [Configuration](#configuration) for details.
+**Key Features:**
 
-3. **Run Development Server**:
-   ```bash
-   bun run dev
-   ```
-   Server will start at `http://localhost:3000`.
+| | Feature | Description |
+|---|---------|-------------|
+| 🎓 | **Socratic Method** | Specialized prompts guide users to discover answers themselves |
+| 💳 | **x402 Payments** | Native micropayment support via SKALE (or any EVM chain) |
+| 💬 | **Stateful Sessions** | Maintains conversation context using SQLite |
+| ⚡ | **Dynamic Pricing** | Pay based on input length with transparent cost calculation |
+| 🚀 | **High Performance** | Built on Bun + Hono for sub-second response times |
+| 🔒 | **Enterprise Security** | Input validation, SQL injection protection, atomic operations |
+
+---
+
+## The First Steps
+
+*"The beginning is the most important part of the work."* — Plato (The Republic)
+
+### Prerequisites
+
+- [Bun](https://bun.sh) v1.1+
+- Google AI Studio API Key ([Get one here](https://aistudio.google.com))
+- EVM wallet address to receive payments
+
+### Setup
+
+```bash
+# 1. Install dependencies
+bun install
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your credentials (see Configuration section)
+
+# 3. Start the server
+bun run dev
+```
+
+The server runs at `http://localhost:3000`.
+
+---
 
 ## Configuration
 
-The application is configured via environment variables:
-
 | Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `SKALE_WALLET_ADDRESS` | EVM address to receive payments | Yes | - |
-| `SKALE_NETWORK_ID` | EVM Chain ID (e.g. `skale-nebula`) | Yes | `skale-nebula` |
-| `SKALE_ASSET_ADDRESS` | ERC-20 Token Address for payments | Yes | - |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini API Key | Yes | - |
-| `FACILITATOR_URL` | x402 Facilitator URL | Yes | - |
-| `DB_PATH` | Path to SQLite database file | No | `socratic.db` |
-| `PORT` | Server port | No | `3000` |
-| `SESSION_MAX_AGE` | Session TTL in seconds | No | `7776000` (90 days) |
+|----------|-------------|:--------:|---------|
+| `SKALE_WALLET_ADDRESS` | Your EVM address to receive payments | ✅ | — |
+| `SKALE_NETWORK_ID` | EVM Chain ID | ✅ | `skale-base` |
+| `SKALE_ASSET_ADDRESS` | ERC-20 token address for payments | ✅ | — |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini API key | ✅ | — |
+| `FACILITATOR_URL` | x402 facilitator URL | ✅ | https://gateway.kobaru.io |
+| `DB_PATH` | SQLite database path | | `socratic.db` |
+| `PORT` | Server port | | `3000` |
+| `SESSION_MAX_AGE` | Session TTL in seconds | | `7776000` (90 days) |
 
-## API Reference
+---
+
+## The Dialogue
+
+*"Opinion is the medium between knowledge and ignorance."* — Plato (The Republic)
 
 ### `GET /`
+
 Returns API information and status.
 
 ### `GET /health`
-Health check endpoint. Returns `{"status": "operational"}`.
+
+Health check endpoint.
+
+```json
+{ "status": "operational" }
+```
 
 ### `POST /ask`
-The main interaction endpoint.
-- **Auth**: Requires `Authorization: Bearer <token>` or `Payment-Signature` header if payment is required.
-- **Status 402**: Returns payment requirements (price, asset, destination) if payment is needed.
-- **Status 200**: Returns the model's reply if verified or free tier (if configured).
 
-**Request Body:**
+The main interaction endpoint. Requires payment via x402 protocol.
+
+**Request:**
+
 ```json
 {
   "message": "I want to understand recursion.",
-  "session_id": "(Optional) UUID to continue a conversation"
-}
-```
-
-**Response (402 Payment Required):**
-```json
-{
-  "accepts": [
-    {
-      "scheme": "exact",
-      "price": { "amount": "100", "asset": "0x..." },
-      "payTo": "0x..."
-    }
-  ]
+  "session_id": "(optional) UUID to continue a conversation"
 }
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "reply": "Imagine a set of Russian dolls... What happens when you open the last one?",
@@ -103,37 +116,33 @@ The main interaction endpoint.
 }
 ```
 
-## Testing
+**Response Headers:**
+- `X-Balance-Remaining` — Current balance in atomic units
 
-Run the test suite using Bun's native test runner:
+**Response (402 Payment Required):**
 
-```bash
-bun test
+```json
+{
+  "detail": "Payment Required",
+  "error": "Insufficient Balance",
+  "accepts": [
+    {
+      "scheme": "exact",
+      "price": { "amount": "985", "asset": "0x..." },
+      "network": "skale-nebula",
+      "payTo": "0x..."
+    }
+  ]
+}
 ```
 
-## How It Works
+---
 
-1. **Context Management**: The server uses a hidden "Context State" summary that evolves with every turn, allowing the AI to remember long conversations without sending the entire history to the LLM every time.
-2. **History Truncation**: Messages stored in history are truncated to 500 characters max to prevent large messages from causing unprofitable carry-forward costs. The progressive summary captures the full context.
-3. **Pricing**: Dynamic pricing based on input length with a minimum price floor (see [Pricing Model](#pricing-model)).
-4. **Session Pruning**: Old sessions (default > 90 days) are automatically pruned to save space.
+## The Price of Knowledge
 
-## Pricing Model
+*"There is only one good, knowledge, and one evil, ignorance."* — Socrates
 
-The API uses dynamic pricing calculated in [`src/lib/pricing.ts`](./src/lib/pricing.ts). The formula ensures profitability while keeping costs fair for users.
-
-### Why Estimated Values?
-
-You might wonder why we use **estimated token counts** instead of calculating the actual context size for each request. This is a limitation of the x402 payment flow:
-
-1. **Price must be calculated before payment verification** - The client needs to know the price to sign the payment
-2. **User identity comes from the payment** - We extract the wallet address from `paymentPayload.payload.authorization.from`
-3. **Context is keyed by wallet + session** - We can't load user-specific context without knowing their wallet
-
-Since the wallet is only available **after** payment verification, we cannot know the actual context size when calculating the price. Instead, we use estimated values based on typical request/response sizes, which works well because:
-- The progressive summary keeps context size relatively stable
-- The system prompt is fixed
-- User inputs vary but the per-character charge handles this
+The API calculates prices dynamically based on input length. See [`src/lib/pricing.ts`](./src/lib/pricing.ts) for implementation.
 
 ### Formula
 
@@ -149,143 +158,343 @@ Where:
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
-| `GEMINI_COST_PER_TOKEN` | $0.0000003 | Gemini 2.5 Flash: $0.30 per 1M tokens |
-| `ESTIMATED_INPUT_TOKENS` | 1450 | System prompt + context + history (6×500 chars) |
-| `ESTIMATED_OUTPUT_TOKENS` | 190 | Reply + context_state + main_goal |
-| `MARGIN_MULTIPLIER` | 2.0 | 100% profit margin (2× cost) |
-| `MINIMUM_PRICE` | $0.000001 | Smallest USDC transaction (6 decimals) |
-| `CHARS_PER_TOKEN` | 4 | Character-to-token conversion ratio |
+| `GEMINI_COST_PER_TOKEN` | $0.0000003 | Gemini 2.5 Flash pricing |
+| `ESTIMATED_INPUT_TOKENS` | 1450 | System prompt + context + history |
+| `ESTIMATED_OUTPUT_TOKENS` | 190 | Reply + context state |
+| `MARGIN_MULTIPLIER` | 2.0 | 100% profit margin |
+| `MINIMUM_PRICE` | $0.000001 | Smallest USDC transaction |
+| `MAX_HISTORY_MESSAGE_CHARS` | 500 | Characters per history message |
+| `MAX_HISTORY_MESSAGES` | 6 | Messages kept in history |
 
-> **About the minimum price:** We set `MINIMUM_PRICE` to `$0.000001` (1 atomic unit), which is the smallest possible transaction with USDC's 6 decimal places. We can use this ultra-low minimum because **SKALE is gasless** — there are no transaction fees to cover. If you deploy on a network with gas costs (Ethereum, Polygon, etc.), you should increase this value to cover the expected gas fees per transaction.
+### Example Prices
 
-### Example Pricing
+| User Input | Price |
+|------------|-------|
+| "Hello" (5 chars) | $0.000985 |
+| 100 characters | $0.001000 |
+| 500 characters | $0.001060 |
+| 1000 characters | $0.001135 |
 
-With the default configuration and SKALE's gasless transactions, the calculated price is always used (minimum is $0.000001):
-
-| User Input | Final Price |
-|------------|-------------|
-| "Hello" (5 chars) | **$0.000985** |
-| 100 characters | **$0.001000** |
-| 500 characters | **$0.001060** |
-| 1000 characters | **$0.001135** |
-
-> **Note:** The base price (~$0.00098) accounts for the system prompt plus maximum history (6 messages × 500 chars). All requests exceed the $0.000001 minimum.
+> **Note:** The minimum price is $0.000001 because SKALE is gasless. If deploying on networks with gas costs (Base, Solana), increase this value to cover transaction fees.
 
 ### Customizing Pricing
 
-All pricing constants are at the top of `src/lib/pricing.ts`:
+Edit the constants at the top of `src/lib/pricing.ts`:
 
 ```typescript
-// =============================================================================
-// PRICING CONFIGURATION - Adjust these values to change pricing
-// =============================================================================
-
-const GEMINI_COST_PER_TOKEN = 0.0000003;  // Update if model pricing changes
-const ESTIMATED_INPUT_TOKENS = 1450;      // System prompt + context + history
-const ESTIMATED_OUTPUT_TOKENS = 190;      // Adjust based on response size
-const MARGIN_MULTIPLIER = 2.0;            // 1.0 = 0%, 2.0 = 100%, 3.0 = 200%
-const MINIMUM_PRICE = 0.000001;           // Smallest USDC tx (SKALE is gasless)
-const CHARS_PER_TOKEN = 4;                // Typical for English text
-export const MAX_HISTORY_MESSAGE_CHARS = 500; // Truncate history messages
+const GEMINI_COST_PER_TOKEN = 0.0000003;  // Model pricing
+const ESTIMATED_INPUT_TOKENS = 1450;      // System + context + history
+const ESTIMATED_OUTPUT_TOKENS = 190;      // Response size
+const MARGIN_MULTIPLIER = 2.0;            // 1.5 = 50%, 2.0 = 100%
+const MINIMUM_PRICE = 0.000001;           // Increase for gas-heavy networks
+export const MAX_HISTORY_MESSAGE_CHARS = 500;
+export const MAX_HISTORY_MESSAGES = 6;
 ```
 
-#### Common Adjustments
+### Why Estimated Tokens?
 
-**Change profit margin:**
-```typescript
-const MARGIN_MULTIPLIER = 1.5;  // 50% margin instead of 100%
+*"True wisdom comes to each of us when we realize how little we understand."*
+
+The x402 flow requires calculating the price **before** payment verification. Since user identity comes from the payment signature, we can't load user-specific context before knowing the price. Estimated values work well because:
+
+- The progressive summary keeps context size stable
+- The system prompt is fixed
+- Per-character charging handles input variation
+
+---
+
+## The Architecture
+
+*"The unexamined life is not worth living."* — Socrates
+
+### The Ledger of Truth
+
+*"An unexamined balance is not worth spending."*
+
+The system implements an internal ledger to handle micropayments efficiently and prevent common attacks.
+
+> [!WARNING]
+> **This is a simplified demonstration.** Ledgers are complex systems requiring careful implementation. This solution works for simple APIs, but for mission-critical production systems handling significant funds, consider using a full-fledged ledger solution like [Kobaru's transparent proxy](https://kobaru.io) with enterprise-grade security.
+
+**Flow:**
+
+1. **Price Calculation** — Calculated from actual request body (prevents bait-and-switch)
+2. **Identity Verification** — Wallet address extracted from payment signature
+3. **Balance Check** — `Available = StoredBalance + NewPayment`
+4. **Payment Enforcement** — If sufficient, serve request; otherwise return 402 with deficit amount
+
+**Benefits:**
+
+| Benefit | Description |
+|---------|-------------|
+| **Pay Once, Use Many** | Pay $1.00 upfront, make ~1000 requests |
+| **No Accounts Needed** | Identity derived from payment signatures |
+| **Micro-Payment Aggregation** | Reduces on-chain interactions |
+| **Transparency** | `X-Balance-Remaining` header shows current balance |
+
+### The Optimistic Path
+
+*"He is richest who is content with the least, for content is the wealth of nature."* Socrates
+
+This example prioritizes UX over strict settlement ordering:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Receive request                                          │
+│ 2. Verify payment signature ✓                               │
+│ 3. Reserve balance atomically ✓                             │
+│ 4. Generate AI response ✓                                   │
+│ 5. Return response immediately ← User gets fast response    │
+│ 6. Settle payment async (background) ← Credit on success    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Increase minimum price (for networks with gas costs):**
-```typescript
-const MINIMUM_PRICE = 0.01;  // $0.01 minimum to cover gas on Ethereum/Polygon
-```
+**Tradeoff:** If settlement fails, the user received one "free" service but their balance stays at 0, preventing further abuse.
 
-**Switch AI model (e.g., to GPT-4):**
-```typescript
-const GEMINI_COST_PER_TOKEN = 0.00003;  // GPT-4 is 100× more expensive
-const ESTIMATED_INPUT_TOKENS = 1500;
-const ESTIMATED_OUTPUT_TOKENS = 300;
-```
+> [!CAUTION]
+> **Fraud Risk:** If settlements are consistently failing, bad actors may discover this and exploit the system—firing millions of requests knowing they won't actually pay. Evaluate your specific context and consider:
+> - **Monitoring** — Track settlement failure rates and alert on anomalies
+> - **Abuse Prevention** — Add logic to block users with multiple failed settlements
+> - **Rate Limiting** — Consider per-wallet request limits as a safeguard
+> 
+> Balance UX with security based on your risk tolerance and customer needs.
 
-**Increase history truncation (for more context, but higher costs):**
-```typescript
-export const MAX_HISTORY_MESSAGE_CHARS = 1000; // 1000 chars per message
-const ESTIMATED_INPUT_TOKENS = 2200;           // Adjust to match: 6 × 1000 / 4 = 1500 extra tokens
-```
+> **Tip:** Kobaru's users can check all transactions (successful and failed) in the [Kobaru dashboard](https://kobaru.io).
 
-## ⚠️ Custom Payment Flow (Important for Learners)
+### The Memory of Discourse
 
-This example **does not use the stock `paymentMiddleware`** from `@x402/hono`. Instead, it implements a custom payment verification flow for performance reasons.
+*"The mind is not a vessel to be filled, but a fire to be kindled."* — Plutarch
 
-### The Problem
+- **Progressive Summary** — Hidden context state evolves each turn, allowing long conversations without sending full history
+- **History Truncation** — Messages capped at 500 chars to bound costs
+- **Session Pruning** — Old sessions (>90 days) automatically cleaned up
 
-The standard `@x402/hono` middleware follows this sequence:
+---
 
-```
-1. Receive request
-2. Verify payment ✓
-3. Execute your handler (AI response) ✓
-4. Await settlement ← BLOCKS HERE (~15-20 seconds)
-5. Return response to client
-```
+## x402 Extensions
 
-Settlement is the process of confirming to the facilitator that you provided the service and the payment should be finalized. The middleware **awaits** this before returning the response, which adds significant latency for long-running settlements.
+This API implements the **x402-balance** extension per the [x402 v2 spec](https://github.com/coinbase/x402/blob/main/specs/x402-specification-v2.md).
 
-### Our Solution
+| Field | Value | Description |
+|-------|-------|-------------|
+| `supportsTopup` | `true` | Overpayments credited to balance |
+| `supportsBalance` | `true` | Maintains per-user balance ledger |
+| `identityMechanism` | `"previous-proof"` | Reuse payment signature for identity |
 
-We use `x402HTTPResourceServer` directly instead of the middleware wrapper:
+**Example 402 Response:**
 
-```typescript
-// Verify payment manually
-const result = await httpServer.processHTTPRequest({ ... });
-
-if (result.type === "payment-error") {
-  return c.json(result.response.body, 402);
+```json
+{
+  "detail": "Payment Required",
+  "accepts": [...],
+  "extensions": {
+    "x402-balance": {
+      "info": {
+        "supportsTopup": true,
+        "supportsBalance": true,
+        "identityMechanism": "previous-proof",
+        "description": "Overpayments are credited. Reuse your payment proof for identity."
+      }
+    }
+  }
 }
-
-// Generate AI response
-const aiResponse = await generateSocraticResponse(...);
-
-// Settle payment ASYNCHRONOUSLY - don't await!
-httpServer.processSettlement(paymentPayload, paymentRequirements)
-  .then(() => console.log("Settlement completed"))
-  .catch((err) => console.error("Settlement failed:", err));
-
-// Return immediately - client doesn't wait for settlement
-return c.json({ reply: aiResponse.reply, session_id });
 ```
 
-### Tradeoffs
+### Using Your Balance
 
-| Aspect | Stock Middleware | Our Custom Flow |
-|--------|-----------------|-----------------|
-| **Response Time** | ~20-25 seconds | ~5 seconds |
-| **Implementation** | Simple, one-liner | More code, manual verification |
-| **Settlement Guarantee** | Client knows settlement succeeded | Client doesn't know settlement status |
-| **Error Handling** | Settlement errors block response | Must handle async settlement failures |
-| **SDK Updates** | Automatic | May need manual updates |
+*"Money is a guarantee that we may have what we want in the future. Though we need nothing at the moment, it ensures the possibility of satisfying a new desire when it arises."* — Aristotle (Nicomachean Ethics)
 
-### When to Use Each Approach
+The API supports **overpayments** and **balance reuse**. Pay more than required, and the surplus is credited to your account. Reuse your payment signature to identify yourself and spend from your balance.
 
-**Use stock `paymentMiddleware` when:**
+**Step 1: Make an Overpayment**
+
+When making a payment, you can pay more than the required amount. The surplus is automatically credited to your balance after settlement.
+
+After successful settlement, the server logs:
+```
+[Ask] Settlement Successful.
+[Ask] Credited Surplus: 4012  # ~$0.004 credited
+```
+
+**Step 2: Extract Your Signature for Identity**
+
+From your payment response, extract the signature from the `PAYMENT-SIGNATURE` payload:
+
+```bash
+# Decode the PAYMENT-SIGNATURE to get your signature
+echo '<your-payment-signature-base64>' | base64 -d | jq -r '.payload.signature'
+# Returns: 0x1fe628d8...761c
+```
+
+**Step 3: Reuse Signature for Subsequent Requests**
+
+Use the signature as proof of identity in the `Authorization` header. No new payment needed—funds are deducted from your balance.
+
+```bash
+# Create the identity token
+SIGNATURE="0x1fe628d8e75ef7c0fb6ed..."
+AUTH_TOKEN=$(echo -n "{\"proof\":\"$SIGNATURE\"}" | base64 -w 0)
+
+# Make requests using your balance
+curl -X POST http://localhost:3000/ask \
+  -H "Content-Type: application/json" \
+  -H "Authorization: x402 $AUTH_TOKEN" \
+  -d '{"message": "Continue our conversation!"}'
+```
+
+**Response Headers:**
+```
+X-Balance-Remaining: 3025  # Balance after deduction
+```
+
+> [!TIP]
+> **Machine Clients:** Store the signature from your first successful payment and reuse it in all subsequent requests. Only make a new payment when `X-Balance-Remaining` is insufficient.
+
+---
+
+## The Unconventional Path
+
+"Know thyself." — Delphic Maxim (adopted by Socrates)
+
+This example **does not use** the standard `paymentMiddleware` from `@x402/hono`. Instead, it uses `x402HTTPResourceServer` directly for performance.
+
+### Why?
+
+The standard middleware blocks on settlement (~2-5 seconds):
+
+```
+Request → Verify → Handle → Await Settlement → Response
+                              ↑
+                         ~2-5s delay
+```
+
+Our custom flow settles asynchronously:
+
+```
+Request → Verify → Reserve → Handle → Response (immediate)
+                                    ↘ Settle (background)
+```
+
+### Comparison
+
+| Aspect | Stock Middleware | Custom Flow |
+|--------|-----------------|-------------|
+| Response Time | ~2-5 seconds | ~1 second |
+| Implementation | One-liner | More code |
+| Settlement Guarantee | Before response | Async |
+| Best For | Non-critical latency | Real-time services |
+
+### When to Use Stock Middleware
+
 - Response time isn't critical
-- You need guaranteed settlement confirmation before responding
+- You need guaranteed settlement before responding  
 - You want minimal custom code
 
-**Use custom flow (like this example) when:**
-- Low latency is essential (AI APIs, real-time services)
-- Settlement can be handled asynchronously
-- You can tolerate occasional settlement failures
+---
 
-### Handling Settlement Failures
+## The Guardian
 
-Since settlement is async, you should:
-1. **Log failures** for monitoring
-2. **Implement retries** if needed
-3. **Consider a dead-letter queue** for failed settlements
+*"It is better to suffer wrong than to do wrong."* — Socrates (via Plato, Gorgias)
 
-In practice, settlement failures are rare. The payment is already verified before your service runs—settlement just confirms delivery.
+### Overview
+
+This API implements **production-grade security**:
+
+```
+┌─────────────────────────────────────────────────┐
+│ Layer 1: Input Validation                       │
+│   → Wallet addresses, user input, signatures    │
+├─────────────────────────────────────────────────┤
+│ Layer 2: Parameterized Queries                  │
+│   → All SQL uses prepared statements            │
+├─────────────────────────────────────────────────┤
+│ Layer 3: Atomic Operations                      │
+│   → Conditional updates prevent race conditions │
+├─────────────────────────────────────────────────┤
+│ Layer 4: Business Logic                         │
+│   → Server-side pricing, balance verification   │
+└─────────────────────────────────────────────────┘
+```
+
+### Input Validation
+
+| Validation | Pattern/Limit | Prevents |
+|------------|---------------|----------|
+| Wallet Address | `0x[a-fA-F0-9]{40}` | SQL injection |
+| User Message | 10,000 chars max, sanitized | DoS, prompt injection |
+| Session ID | UUID format | SQL injection |
+| Signature Hash | Alphanumeric + base64, 1000 chars | Header injection |
+| Balance Amount | 0 to 10³⁰ | Integer overflow |
+
+### Financial Security
+
+| Protection | Mechanism |
+|------------|-----------|
+| **Double-Spend Prevention** | Atomic conditional SQL updates |
+| **Bait-and-Switch** | Price calculated from actual body |
+| **Replay Attacks** | Payment signatures tracked in ledger |
+| **Race Conditions** | SQLite conditional updates |
+
+### Production Hardening
+
+- **Request ID Middleware** — Unique ID for every request (`X-Request-ID`)
+- **Security Headers** — CSP, X-Content-Type-Options, HSTS
+- **Structured Logging** — Settlement failures logged with context
+- **Graceful Shutdown** — SIGTERM/SIGINT close DB cleanly
+- **Fail-Fast Startup** — Refuses to start with missing config
+- **Payment Pruning** — Old records (90+ days, zero balance) auto-cleaned
+
+### Rate Limiting
+
+*"Nothing in excess."* — Solon (One of the Seven Sages)
+
+This API **does not implement rate limiting** by design. For paid-only APIs, payment acts as a natural throttle.
+
+> ⚠️ **Consider adding rate limiting if:**
+> - You expect runaway AI agent loops
+> - You have strict upstream quotas
+> - You want fair usage policies
+> - Your infrastructure has capacity constraints
+
+---
+
+## The Trials
+
+*"The only true wisdom is in knowing you know nothing."* — Socrates (Apology)
+
+Run the test suite:
+
+```bash
+bun test
+```
+
+The suite includes 46+ tests covering:
+- Input validation and sanitization
+- Balance operations and atomicity
+- Payment flow and edge cases
+- Client isolation and security scenarios
+
+---
+
+## The Tools of the Trade
+
+| Component | Technology |
+|-----------|------------|
+| Runtime | [Bun](https://bun.sh) v1.1+ |
+| Framework | [Hono](https://hono.dev) |
+| Payments | x402 SDK v2 |
+| AI | Vercel AI SDK (Google Gemini) |
+| Database | `bun:sqlite` |
+
+---
+
+## Legal
+
+*"The law is reason, free from passion."* — Aristotle
+
+You are responsible for using this example in compliance with applicable laws. The authors and contributors are not liable for damages or legal issues arising from use. Understand the legal implications of managing balances, handling payments, and relevant regulations.
+
+---
 
 ## License
 

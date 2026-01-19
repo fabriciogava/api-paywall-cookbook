@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
 import { x402ResourceServer } from "@x402/hono";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
@@ -8,6 +8,7 @@ import { createStateManager } from "./lib/state.js";
 import { createGeneralRoutes } from "./routes/general.js";
 import { createAskRoute } from "./routes/ask.js";
 import { startPruningService } from "./services/cleanup.js";
+import { requestIdMiddleware } from "./middleware/request-id.js";
 
 export interface AppConfig {
     skaleWalletAddress?: string;
@@ -25,16 +26,34 @@ export async function createApp(config: AppConfig) {
     console.log("Creating App...");
     const app = new Hono();
 
-    // Custom Logger
-    app.use("*", async (c, next) => {
-        console.log(`[${new Date().toISOString()}] ${c.req.method} ${c.req.path}`);
-        await next();
-        console.log(`[${new Date().toISOString()}] Completed ${c.req.method} ${c.req.path} - Status: ${c.res.status}`);
-    });
+    // 1. Initialize Middleware
+    // Request ID for tracing
+    app.use("*", requestIdMiddleware());
 
-    // 1. Initialize Core Services
+    // Security headers
+    app.use("*", secureHeaders({
+        strictTransportSecurity: "max-age=31536000; includeSubDomains",
+        xContentTypeOptions: "nosniff",
+        xFrameOptions: "DENY",
+        contentSecurityPolicy: {
+            defaultSrc: ["'self'"]
+        }
+    }));
+
+    // CORS: Wildcard (*) is intentional for this public API.
+    // - The API is designed to serve ANY paying client on the internet
+    // - Payment via x402 is the access control mechanism, not origin restrictions
+    // - Most consumers are AI agents/servers which bypass CORS entirely
+    // - No cookies or session-based auth that could be exploited via CSRF
     app.use("*", cors());
-    app.use("*", logger());
+
+    // Custom logger with request ID
+    app.use("*", async (c, next) => {
+        const requestId = (c.get("requestId") as string) || "unknown";
+        console.log(`[${new Date().toISOString()}] [${requestId}] ${c.req.method} ${c.req.path}`);
+        await next();
+        console.log(`[${new Date().toISOString()}] [${requestId}] Completed ${c.req.method} ${c.req.path} - Status: ${c.res.status}`);
+    });
 
     const stateManager = createStateManager(config.dbPath);
 
@@ -51,28 +70,46 @@ export async function createApp(config: AppConfig) {
 
     const resourceServer = new x402ResourceServer(facilitatorClient);
 
-    if (config.skaleWalletAddress && config.skaleNetworkId) {
-        resourceServer.register(config.skaleNetworkId as any, new ExactEvmScheme());
-    } else {
-        console.warn("⚠️ No wallet address or network configured. Payments will fail.");
+    // CRITICAL: Wallet and network configuration is required for paid API
+    if (!config.skaleWalletAddress || !config.skaleNetworkId) {
+        throw new Error(
+            "FATAL: Missing required payment configuration. " +
+            "SKALE_WALLET_ADDRESS and SKALE_NETWORK_ID environment variables must be set."
+        );
     }
+    resourceServer.register(config.skaleNetworkId as any, new ExactEvmScheme());
 
-    // 4. Fetch Asset Decimals (Simplified per refactor)
+    // 4. Fetch Asset Decimals - CRITICAL: Must succeed for payments to work
     let assetMetadata = { decimals: 6, name: "USDC", version: "1" };
     try {
-        console.log("Fetching Supported Assets...");
+        console.log("Fetching Supported Assets from Facilitator...");
         const supported = await facilitatorClient.getSupported();
-        const networkData = supported.kinds?.find((k: any) => k.network === config.skaleNetworkId);
-        if (networkData?.extra) {
+
+        if (!supported.kinds || supported.kinds.length === 0) {
+            throw new Error("Facilitator returned no supported payment methods");
+        }
+
+        const networkData = supported.kinds.find((k: any) => k.network === config.skaleNetworkId);
+        if (!networkData) {
+            throw new Error(
+                `Facilitator does not support network: ${config.skaleNetworkId}. ` +
+                `Available networks: ${supported.kinds.map((k: any) => k.network).join(", ")}`
+            );
+        }
+
+        if (networkData.extra) {
             assetMetadata = {
                 decimals: (networkData.extra.decimals as number) || 6,
                 name: (networkData.extra.name as string) || "USDC",
                 version: (networkData.extra.version as string) || "1"
             };
-            console.log("Asset metadata loaded:", assetMetadata);
         }
+        console.log("✅ Asset metadata loaded:", assetMetadata);
     } catch (e) {
-        console.error("Failed to fetch asset metadata, using defaults", e);
+        throw new Error(
+            `FATAL: Cannot reach facilitator at ${config.facilitatorUrl}. ` +
+            `Payments will not work. Error: ${e instanceof Error ? e.message : String(e)}`
+        );
     }
 
     // 5. Register Routes
@@ -83,5 +120,15 @@ export async function createApp(config: AppConfig) {
     app.route("/ask", createAskRoute(config, stateManager, resourceServer, assetMetadata));
 
     console.log("App Created!");
-    return app;
+
+    // Return app and cleanup function for graceful shutdown
+    return {
+        app,
+        stateManager,
+        shutdown: () => {
+            console.log("Shutting down gracefully...");
+            stateManager.close();
+            console.log("Database connection closed.");
+        }
+    };
 }
