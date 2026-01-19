@@ -2,17 +2,14 @@
 
 *I possess no wisdom... but those who associate with me discover within themselves many fair things."* — Socrates (via Plato, Theaetetus)
 
-A wise AI tutor that guides you to discover answers through thoughtful questions—monetized via the **x402 protocol**.
-
 > Some say AI makes people dumber by providing ready answers. We use the ancient **Socratic Method** to fix that.
 
+A wise AI tutor that guides you to discover answers through thoughtful questions—monetized via the **x402 protocol**.
 
 > [!WARNING]
 > **Friedrich Nietzsche does not endorse or approve this project.**
 >
-> By automating the Socratic Method, this API empowers the **Theoretical Man** at the expense of the **Dionysian spirit**. To Nietzsche, joy springs from instinct and chaos, not from the cold logic of an algorithm.
->
-> Consequently, this project is a monument to the 'Tyranny of Reason.' If you believe that `Reason == Virtue == Happiness`, you are in the right place. But if you prefer the dangerous passion of life over the suffocating net of dialectics, turn back now. You have been warned!
+> By automating the Socratic Method, this API empowers the **Theoretical Man** at the expense of the **Dionysian spirit**. To Nietzsche, joy springs from instinct and chaos, not from the cold logic of an algorithm. Consequently, this project is a monument to the 'Tyranny of Reason.' If you believe that `Reason == Virtue == Happiness`, you are in the right place. But if you prefer the dangerous passion of life over the suffocating net of dialectics, turn back now. You have been warned!
 
 ---
 
@@ -68,10 +65,11 @@ The server runs at `http://localhost:3000`.
 | Variable | Description | Required | Default |
 |----------|-------------|:--------:|---------|
 | `SKALE_WALLET_ADDRESS` | Your EVM address to receive payments | ✅ | — |
-| `SKALE_NETWORK_ID` | EVM Chain ID | ✅ | `skale-base` |
-| `SKALE_ASSET_ADDRESS` | ERC-20 token address for payments | ✅ | — |
+| `SKALE_NETWORK_ID` | EVM Chain ID | ✅ | `eip155:1187947933` |
+| `SKALE_ASSET_ADDRESS` | ERC-20 token address for payments | ✅ | `0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20` |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini API key | ✅ | — |
 | `FACILITATOR_URL` | x402 facilitator URL | ✅ | https://gateway.kobaru.io |
+| `KOBARU_API_KEY` | Kobaru API key | No | — |
 | `DB_PATH` | SQLite database path | | `socratic.db` |
 | `PORT` | Server port | | `3000` |
 | `SESSION_MAX_AGE` | Session TTL in seconds | | `7776000` (90 days) |
@@ -175,7 +173,7 @@ Where:
 | 500 characters | $0.001060 |
 | 1000 characters | $0.001135 |
 
-> **Note:** The minimum price is $0.000001 because SKALE is gasless. If deploying on networks with gas costs (Base, Solana), increase this value to cover transaction fees.
+> **Note:** The minimum price is set to $0.000001. If deploying on networks with gas costs (Base, Solana), increase this value to cover transaction fees.
 
 ### Customizing Pricing
 

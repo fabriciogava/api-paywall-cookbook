@@ -23,11 +23,16 @@ const ESTIMATED_OUTPUT_TOKENS = 190;
 
 /**
  * Profit margin multiplier (1.0 = 0% margin, 2.0 = 100% margin)
+ * We set this to 2.0 to cover:
+ * 1. Operational costs (servers, database)
+ * 2. Failed payments (since we use Optimistic Service)
+ * 3. Profit
  */
 const MARGIN_MULTIPLIER = 2.0;
 
 /**
  * Calculated base cost per request (input + output tokens × cost per token × margin)
+ * This is the fixed cost component effectively.
  */
 const COST_PER_REQUEST =
     (ESTIMATED_INPUT_TOKENS + ESTIMATED_OUTPUT_TOKENS) * GEMINI_COST_PER_TOKEN * MARGIN_MULTIPLIER;
@@ -92,8 +97,10 @@ export interface PricingConfig {
  * Formula: (InputChars + EstimatedContextChars) * PricePerChar + BaseCost
  * 
  * Note: We use a fixed context estimation because:
- * 1. We can't identify the user until after payment verification
- * 2. Progressive summary keeps context size relatively stable across sessions
+ * 1. We can't identify the user until after payment verification (Chicken & Egg problem).
+ *    We don't know their history size yet.
+ * 2. Progressive summary keeps context size relatively stable across sessions, so an average is safe.
+ * 3. It provides a predictable price for the user before they pay.
  */
 export function calculatePrice(
     input: string,

@@ -4,7 +4,9 @@ import { z } from "zod";
 import { SOCRATIC_SYSTEM_PROMPT } from "./prompt.js";
 import { PROMPT_DELIMITER, escapeForPrompt } from "./prompt-security.js";
 
-// Define the schema for the AI's response
+// Define the schema for the AI's response using Zod.
+// This enforces a "Structured Output" from the LLM, ensuring we always get
+// valid JSON with the exact fields we need for our application state.
 export const ResponseSchema = z.object({
   reply: z.string().describe("The Socratic helpful response to the student."),
   context_state: z.string().describe("A compressed summary of the conversation state to remember for next time. Update this based on the new interaction."),
@@ -56,6 +58,9 @@ export async function generateSocraticResponse(
 
   console.log(`[GEMINI] Request size: ${inputPrompt.length} chars`);
 
+  // Call the AI model
+  // generateObject() automatically forces the model to output JSON matching our schema.
+  // This is much more reliable than asking for JSON in the system prompt.
   const result = await generateObject({
     model: MODEL,
     schema: ResponseSchema,

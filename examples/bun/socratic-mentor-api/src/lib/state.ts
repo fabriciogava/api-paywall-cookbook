@@ -26,6 +26,11 @@ export class StateManager {
     }
 
     private initialize() {
+        // Sessions Table: Stores the state of each conversation.
+        // - id: UUID v7, unique per session.
+        // - context_state: The compressed AI memory/summary.
+        // - history: Recent raw message pairs.
+        // - main_goal: The user's goal, tracked over time.
         this.db.run(`CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         context_state TEXT NOT NULL,
@@ -34,11 +39,17 @@ export class StateManager {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 
+        // Balances Table: Tracks user credit.
+        // - balance_atomic: The balance in atomic units (e.g., 1000000 = 1 USDC).
+        //   Stored as TEXT to avoid floating point precision errors with SQLite numbers.
         this.db.run(`CREATE TABLE IF NOT EXISTS balances (
         wallet_address TEXT PRIMARY KEY,
         balance_atomic TEXT NOT NULL
       )`);
 
+        // Processed Payments Table: Prevents Replay Attacks & acts as Identity Provider.
+        // - signature_hash: Unique ID of the payment.
+        // - wallet_address: Who made the payment.
         this.db.run(`CREATE TABLE IF NOT EXISTS processed_payments (
         signature_hash TEXT PRIMARY KEY,
         wallet_address TEXT NOT NULL,
@@ -77,6 +88,7 @@ export class StateManager {
         validateWalletAddress(walletAddress);
 
         const row = this.db.query<{ balance_atomic: string }, any>("SELECT balance_atomic FROM balances WHERE wallet_address = ?").get(walletAddress);
+        // Return 0n if no record exists (standard behavior for empty wallet)
         return row ? BigInt(row.balance_atomic) : 0n;
     }
 
@@ -101,6 +113,7 @@ export class StateManager {
 
         // Use parameterized query to prevent SQL injection
         // Convert to string for TEXT storage as requested
+        // UPSERT Logic: Insert new row, or update existing if wallet matches.
         const deltaStr = delta.toString();
         this.db.prepare(`
             INSERT INTO balances (wallet_address, balance_atomic)
@@ -120,7 +133,9 @@ export class StateManager {
         validateBalanceAmount(amount, "deduction amount");
 
         // Use parameterized query to prevent SQL injection
-        // The WHERE clause ensures we only deduct if sufficient balance exists
+        // The WHERE clause ensures we only deduct if sufficient balance exists.
+        // This acts as an optimistic locking mechanism (Check-and-Set)
+        // preventing race conditions where two requests might spend the same balance.
         const amountStr = amount.toString();
         const result = this.db.prepare(`
             UPDATE balances

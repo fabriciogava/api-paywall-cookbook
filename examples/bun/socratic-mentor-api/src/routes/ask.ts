@@ -14,6 +14,15 @@ import { Errors } from "../lib/errors.js";
  * x402-balance extension per x402 v2 spec.
  * Advertises balance management capabilities to machine clients.
  */
+/**
+ * x402-balance extension per x402 v2 spec.
+ * Advertises balance management capabilities to machine clients (Agents).
+ * 
+ * Machine clients read this to understand:
+ * 1. supportsTopup: If I pay more than required, do I get credit? (Yes)
+ * 2. supportsBalance: Does this API keep a ledger for me? (Yes)
+ * 3. identityMechanism: How do I prove who I am later? (By reusing the payment proof/signature)
+ */
 const X402_BALANCE_EXTENSION = {
     "x402-balance": {
         info: {
@@ -36,8 +45,12 @@ const X402_BALANCE_EXTENSION = {
 
 /**
  * Creates the /ask route with all dependencies injected.
- * Uses manual payment verification with async settlement for faster response times.
+ * Uses "Optimistic Service" pattern:
+ * - We verify the PROMISE of payment (valid signature) + Internal Balance
+ * - We render service IMMEDIATELY (low latency)
+ * - We settle the payment ASYNCHRONOUSLY (background)
  */
+
 /**
  * Helper to decode x402 header safely and extract signature.
  * Validates the signature to prevent injection attacks.
@@ -49,7 +62,7 @@ function getSignatureFromHeader(header: string): string | null {
         const json = JSON.parse(atob(token));
         const proof = json.proof || null;
 
-        // Validate signature format to prevent injection
+        // Validate signature format to prevent injection via SQL or logs
         if (proof) {
             validateSignatureHash(proof);
         }
@@ -70,7 +83,10 @@ export function createAskRoute(
     const app = new Hono();
 
     // Define payment-protected route config
-    // We now accept an exact price for the "Deficit"
+    // We use the "Exact EVM" scheme, meaning the client must pay an exact amount of tokens
+    // on the specified EVM network.
+    // 
+    // This generator function creates the 402 Accepted Parameters dynamically based on the deficit.
     const getPaymentOptions = (deficitAtomic: string, deficitFormatted: string) => [{
         scheme: "exact" as const,
         price: {
@@ -84,7 +100,7 @@ export function createAskRoute(
         network: config.skaleNetworkId as any,
         asset: config.skaleAssetAddress || "0xUSDC",
         payTo: config.skaleWalletAddress as string,
-        maxTimeoutSeconds: 300,
+        maxTimeoutSeconds: 300, // Payment valid for 5 minutes
         description: `Socratic Consultation (${deficitFormatted})`
     }];
 
@@ -114,6 +130,8 @@ export function createAskRoute(
         const { message, session_id, main_goal } = parsed.data;
 
         // Calculate Price on ACTUAL body
+        // Unlike typical APIs with fixed prices, we charge based on "Work Done" (Input + Context size).
+        // This ensures the service remains profitable even for long conversations.
         const price = calculatePrice(message);
         const priceAtomic = BigInt(priceToAtomicUnits(price, assetMetadata.decimals));
 
@@ -158,8 +176,12 @@ export function createAskRoute(
 
         // B. Check Facilitator (New Payment Path)
         // If we haven't identified via ledger, verify the payment with the facilitator.
-        // We decode the payment upfront and verify directly using the payment's `accepted` requirements,
-        // which allows overpayments (amount > required) to work correctly.
+        // We decode the payment upfront and verify directly using the payment's `accepted` requirements.
+        //
+        // NOTE: We trust `accepted` (what the user *claims* they paid) during verification,
+        // but we verify the cryptographic proof of that claim with the Facilitator.
+        // This allows "Overpayments" (User claims to pay 100, Service required 50) to be processed correctly.
+        // We will "Settle" this payment later to actually collect the funds and credit the surplus.
 
         if (!walletAddress && paymentSignatureHeader) {
             console.log(`[${new Date().toISOString()}] [Ask] Signature not in ledger. Verifying with Facilitator...`);
@@ -191,7 +213,8 @@ export function createAskRoute(
                         }
                     };
 
-                    // Verify using normalized payload and requirements
+                    // Verify using normalized payload and requirements.
+                    // Facilitator checks: Signature is valid, Payment is for us, Network is correct.
                     const verifyResult = await resourceServer.verifyPayment(normalizedPayload, normalizedAccepted);
 
                     if (verifyResult.isValid) {
@@ -245,8 +268,14 @@ export function createAskRoute(
         // ---------------------------------------------------------
 
         // We determine how much of the Cost must come from the EXISTING balance.
-        // If New Payment >= Price, we need 0 from balance.
-        // If New Payment < Price, we need the difference.
+        // Logic:
+        // 1. Total Cost = priceAtomic
+        // 2. Incoming Payment = newPaymentAmount
+        // 3. Deficit = max(0, Total Cost - Incoming Payment)
+        //
+        // If the user sends a new payment that covers the full cost, amountFromBalance is 0.
+        // If they send NO payment (Auth only), amountFromBalance is the full price.
+        // If they send a partial payment, amountFromBalance is the remainder.
 
         const amountFromBalance = priceAtomic > newPaymentAmount
             ? priceAtomic - newPaymentAmount
@@ -258,12 +287,13 @@ export function createAskRoute(
                 // Insufficient Funds in Balance to cover the difference
                 console.log(`[${new Date().toISOString()}] [Ask] Insufficient funds. Balance Cover Needed: ${amountFromBalance}`);
 
-                // For 402, we calculate Total Deficit
+                // For 402, we calculate Total Deficit the user needs to pay.
                 // Deficit = Price - (Balance + NewPayment)
-                // We know (Balance < amountFromBalance), and amountFromBalance = Price - NewPayment
-                // So Balance < Price - NewPayment
-                // Balance + NewPayment < Price.
-                // Deficit is positive.
+                // This tells the user EXACTLY how much MORE they need to send.
+                //
+                // e.g. Price=100, Balance=30, NewPayment=20.
+                // Available=50. Deficit=50.
+                // User receives 402 asking for 50.
 
                 const currentBalance = walletAddress ? stateManager.getBalance(walletAddress) : 0n;
                 const totalAvailable = currentBalance + newPaymentAmount;
@@ -295,7 +325,7 @@ export function createAskRoute(
                     extensions: X402_BALANCE_EXTENSION
                 };
 
-                console.log(`[${new Date().toISOString()}] [Ask] Returning 402 Response:`, JSON.stringify(paymentRequired, null, 2));
+                // console.log(`[${new Date().toISOString()}] [Ask] Returning 402 Response:`, JSON.stringify(paymentRequired, null, 2));
 
                 // Set PAYMENT-REQUIRED header (x402 v2 spec)
                 c.header("PAYMENT-REQUIRED", encodePaymentRequiredHeader(paymentRequired));
@@ -311,6 +341,19 @@ export function createAskRoute(
         // ---------------------------------------------------------
         // 4. Render Service (Optimistic)
         // ---------------------------------------------------------
+        // We have successfully verified that the user HAS funds (Balance reserved OR Valid Payment Signature).
+        // We now proceed to generate the AI response IMMEDIATELY.
+        //
+        // Why not wait for Settlement?
+        // - Settlement involves blockchain/facilitator calls that can be slow (seconds).
+        // - AI generation is already slow (seconds).
+        // - Serializing them (Settlement -> AI) doubles the latency.
+        // - By running parallel (AI starts now, Settlement happens in background), we give the best UX.
+        //
+        // Risk:
+        // - If settlement fails LATER, we gave away one AI response for free.
+        // - This is an acceptable business risk (micro-transaction value).
+        // - We mitigate this by NOT crediting the users balance until settlement succeeds.
 
         console.log(`[${new Date().toISOString()}] [Ask] Payment Validated (Balance Reserved: ${amountFromBalance}, Pending Settlement: ${newPaymentAmount}). Processing...`);
 
@@ -359,11 +402,17 @@ export function createAskRoute(
 
             if (walletAddress && newPaymentAmount > 0n && paymentPayload) {
                 // We handle settlement in the background to avoid blocking the response.
-                // We logic: If settlement succeeds, we credit the SURPLUS.
-                // Surplus = NewPayment - Cost_Covered_By_Payment
-                // We know Cost = priceAtomic.
-                // Cost_Covered_By_Payment = min(newPayment, price).
-                // So Surplus = max(0, newPayment - price).
+                //
+                // Logic:
+                // 1. Process Settlement (Collect the funds).
+                // 2. If Successful:
+                //    - Record the payment signature (prevents replay, establishes identity).
+                //    - Calculate Surplus (NewPayment - Cost_Covered_By_Payment).
+                //    - Credit Surplus to User Balance.
+                //
+                // Note: If we reserved ANY amount from balance (amountFromBalance > 0), 
+                // it implies NewPayment < Price, so Surplus is definitely 0.
+                // Surplus only exists if NewPayment > Price.
 
                 const surplusToCredit = newPaymentAmount > priceAtomic
                     ? newPaymentAmount - priceAtomic
@@ -421,7 +470,9 @@ export function createAskRoute(
             });
 
         } catch (e) {
-            // If we reserved from balance, we should refund.
+            // Safety Net:
+            // If the AI service fails/crashes, we must REFUND the balance we reserved.
+            // Since settlement hasn't happened yet, we just add the reserved amount back.
             if (amountFromBalance > 0n && walletAddress) {
                 stateManager.adjustBalance(walletAddress, amountFromBalance);
                 console.log(`[${new Date().toISOString()}] [Ask] Refunded ${amountFromBalance} to ${walletAddress} due to AI service error.`);

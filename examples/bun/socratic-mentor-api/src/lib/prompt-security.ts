@@ -8,6 +8,10 @@
 /**
  * Unique delimiter to mark boundaries between system instructions and user input.
  * Using a complex pattern that's unlikely to appear in natural user input.
+ * 
+ * Why this matters:
+ * By clearly marking where "User Input" begins and ends, we help the model distinguish
+ * between "Instructions to follow" and "Data to process".
  */
 export const PROMPT_DELIMITER = "====USER_INPUT_BOUNDARY====";
 

@@ -17,6 +17,11 @@ const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
  * Validates that a string is a properly formatted EVM wallet address.
  * Prevents SQL injection by ensuring only valid hex characters after 0x prefix.
  *
+ * Why this matters:
+ * If we accepted any string as a wallet address, a malicious user could pass a string like:
+ * "' OR 1=1; DROP TABLE balances; --"
+ * Even with parameterized queries, it's best practice to validate formats strictly.
+ *
  * @throws Error if the address is invalid
  */
 export function validateWalletAddress(address: string): void {
@@ -55,6 +60,9 @@ export const MAX_MAIN_GOAL_LENGTH = 500;
 /**
  * Sanitizes user input by removing control characters and limiting length.
  * Prevents prompt injection, XSS, and database pollution.
+ * 
+ * Cleaning input before it reaches the Database or AI model is a crucial 
+ * Defense-in-Depth layer.
  *
  * @param input - Raw user input
  * @param maxLength - Maximum allowed length

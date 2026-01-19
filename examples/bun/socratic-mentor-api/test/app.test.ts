@@ -3,6 +3,8 @@ import { createApp } from "../src/app.js";
 
 // Mocks configuration in module scope
 // Stateful mock for StateManager
+// We use a Map to simulate the DB in-memory so we can test state persistence
+// within a single test run without hitting disk / SQLite.
 const mockStore = new Map();
 const mockBalances = new Map<string, bigint>();
 
@@ -336,6 +338,7 @@ describe("Socratic Mentor API Integration", () => {
 
         expect(res.status).toBe(200);
         const data = await res.json();
+        // The API should respect the client's session choice
         expect(data.session_id).toBe("019468c8-b184-7299-80bf-104997327771");
     });
 
@@ -396,8 +399,10 @@ describe("Socratic Mentor API Integration", () => {
 
     it("should isolate separate contexts for different wallets sharing same session_id", async () => {
         // This is the CRITICAL security test
-        // Scenario: Two users happen to use the same UUID (maliciously or accidentally)
-        // They MUST have separate storage keys
+        // Scenario: Two users happen to use the same UUID (maliciously or accidentally).
+        // Since session_id is provided by the client, we cannot trust it to be globally unique.
+        // We MUST scope sessions by Wallet Address (Identity) to prevent data leaks.
+        // Expected: Two users with same session_id have completely separate history/context.
         const sameSessionId = "019468c8-b184-7299-80bf-104997327771";
 
         // User A (Alice)

@@ -181,6 +181,13 @@ describe("Mini-Ledger & Balance Logic", () => {
         mockSessions.clear();
     });
 
+    // -------------------------------------------------------------------------
+    // Scenario 1: Returning User (Identity Path)
+    // -------------------------------------------------------------------------
+    // User provides a signature we have seen before.
+    // We look up their wallet address from our ledger.
+    // We check if they have enough balance.
+    // They do -> Service Rendered, Balance Deducted.
     it("Scenario 1: Identity (Ledger Hit) - Succcessful Service with Balance", async () => {
         // Setup: User has balance and is known
         const wallet = "0xRichUser";
@@ -213,6 +220,12 @@ describe("Mini-Ledger & Balance Logic", () => {
         expect(headerBalance).toBe(newBalance.toString());
     });
 
+    // -------------------------------------------------------------------------
+    // Scenario 2: New User (Payment Path)
+    // -------------------------------------------------------------------------
+    // User provides a NEW valid payment signature (not in ledger).
+    // It verifies against Facilitator.
+    // We process it, render service, and settle later.
     it("Scenario 2: New Payment (Facilitator Hit) - Credits Balance", async () => {
         const wallet = "0xNewUser";
         const proof = "new_signature";
@@ -233,7 +246,6 @@ describe("Mini-Ledger & Balance Logic", () => {
 
         // Assert Balance = Amount - Cost
         // But since settlement is ASYNC, the response header might show OLD balance (0).
-
         // Verify Header (Immediate) structure
         const headerBalance = res.headers.get("X-Balance-Remaining");
         expect(headerBalance).toBe("0"); // 0 because settlement hasn't credited yet
@@ -247,6 +259,12 @@ describe("Mini-Ledger & Balance Logic", () => {
         expect(balance).toBeGreaterThan(0n);
     });
 
+    // -------------------------------------------------------------------------
+    // Scenario 3: Broken User (Insufficient Funds)
+    // -------------------------------------------------------------------------
+    // User is known but has almost zero balance.
+    // They send no new payment.
+    // Result: 402 Payment Required (with Deficit calculated).
     it("Scenario 3: Insufficient Funds - Returns 402 with Deficit", async () => {
         const wallet = "0xPoorUser";
         const proof = "old_sig";
@@ -272,6 +290,13 @@ describe("Mini-Ledger & Balance Logic", () => {
         expect(BigInt(data.accepts[0].amount)).toBeGreaterThan(0n);
     });
 
+    // -------------------------------------------------------------------------
+    // Scenario 4: "Bait and Switch" Attack
+    // -------------------------------------------------------------------------
+    // User pays for a cheap request (100 units) but sends a HUGE expensive payload.
+    // Our pricing logic catches this because:
+    // Required Price > (Balance + Incoming Payment)
+    // result: 402 (Asking for the remainder).
     it("Scenario 4: Bait-and-Switch - Payment provided < Actual Cost", async () => {
         // User sends a "New Payment" of 100 units
         // But sends a message that costs 500 units
@@ -296,6 +321,13 @@ describe("Mini-Ledger & Balance Logic", () => {
         expect(data.error).toBe("Insufficient Balance");
     });
 
+    // -------------------------------------------------------------------------
+    // Scenario 5: Split Payment (Balance + Topup)
+    // -------------------------------------------------------------------------
+    // User has tiny balance (1). Request costs ~5000.
+    // User sends payment of 1,000,000.
+    // Math: 1 (Balance) + 1,000,000 (Payment) >= 5000 (Cost).
+    // Result: Success (Balance reserved + Surplus credited later).
     it("Scenario 5: Split Payment - Balance + New Payment >= Cost", async () => {
         const wallet = "0xSplitUser";
         const proof = "partial_sig";
@@ -321,6 +353,11 @@ describe("Mini-Ledger & Balance Logic", () => {
         expect(balance).toBeLessThan(1000001n);
         // Should be roughly 1000000
     });
+
+    // -------------------------------------------------------------------------
+    // Scenario 6: Isolation Test
+    // -------------------------------------------------------------------------
+    // Ensure one user's action doesn't drain another user's balance.
     it("Scenario 6: Client Isolation - Balances are distinct", async () => {
         const alice = "0xAlice";
         const bob = "0xBob";
