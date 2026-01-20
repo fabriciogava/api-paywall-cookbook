@@ -43,6 +43,7 @@ Think of this as a **sandbox for developers** — a place to experiment, learn, 
 ```
 api-paywall-cookbook/
 ├── examples/
+│   ├── no-code/                   # 🎮 God Mode: Zero-code proxy integration
 │   ├── nodejs/
 │   │   ├── deep-thought-api/      # Reference implementation (Hono + x402)
 │   │   ├── extract-wisdom-api/    # AI-powered YouTube wisdom extraction
@@ -128,6 +129,22 @@ All cookbook examples are deployed to production. You can test them directly:
 
 ---
 
+## 🎮 God Mode: The Easiest Way
+
+**Want to monetize your API without writing a single line of code?**
+
+Use Kobaru's [Transparent Proxy](examples/no-code) to turn your unpaid API into a paid API in under 5 minutes. Zero code changes. Zero deployment. Just configure your service in the Kobaru Console, and every endpoint becomes payment-gated automatically.
+
+→ **[Read the God Mode Guide](examples/no-code/README.md)**
+
+Perfect for:
+- Existing APIs you don't want to modify
+- Quick prototypes and MVPs
+- APIs where you don't control the code
+- Anyone who wants the easiest path to monetization
+
+---
+
 ## 📚 Examples
 
 ### By Language
@@ -151,6 +168,7 @@ All cookbook examples are deployed to production. You can test them directly:
 
 | Level | Description | Examples |
 |-------|-------------|----------|
+| 🎮 **God Mode** | Zero code — Transparent proxy integration | [No-Code Paywall](examples/no-code) |
 | 🟢 **Beginner** | Simple single-endpoint APIs | [Deep Thought API](examples/nodejs/deep-thought-api), [Vulcan Logic API](examples/go/vulcan-logic-api) |
 | 🟡 **Intermediate** | Dynamic pricing, external integrations | [Extract Wisdom API](examples/nodejs/extract-wisdom-api) |
 | 🔴 **Advanced** | Mini-ledger, optimistic flow, custom payment handling | [Oracle of Babel](examples/rust/oracle-of-babel), [Socratic Mentor API](examples/bun/socratic-mentor-api) |
@@ -279,7 +297,12 @@ There's no functional minimum! You can charge fractions of a cent per request, m
 <details>
 <summary><strong>Can I use this with my existing API?</strong></summary>
 
-Absolutely! You can add x402 payment requirements to existing endpoints or use Kobaru's transparent proxy to add a paywall without changing your backend.
+Absolutely! You have two options:
+
+1. **Zero Code (God Mode)** — Use Kobaru's [Transparent Proxy](examples/no-code) to add a paywall without changing your backend at all. Configure once in the console, and you're done.
+2. **SDK Integration** — Add x402 payment requirements directly to your existing endpoints using the x402 SDK for full control.
+
+Most people start with the transparent proxy for speed, then migrate to SDK integration if they need advanced features.
 </details>
 
 <details>
