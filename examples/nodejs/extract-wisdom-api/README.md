@@ -10,7 +10,7 @@ It is guarded by the ancient **x402 Protocol**, a magical barrier that demands a
 
 -   **The Scales of Equivalent Exchange (Dynamic Pricing)**: The spell consumes 1 micro-USDC (atomic unit) for every token of knowledge. We leverage `paymentMiddleware` to calculate this cost dynamically before the spell is even cast.
 -   **The Price Floor**: To ensure the ritual is worth the mana, a minimum tribute of 10,000 atomic units ($0.01) is demanded, regardless of length.
--   **The Bazaar (Agent Discovery)**: The API broadcasts its own instruction manual (Input Schema) via the `bazaar` extension, allowing AI agents to discover and learn how to use it autonomously.
+-   **The Bazaar (Enhanced Discovery)**: The API broadcasts its identity, instruction manual (Input Schema), searchable tags, and provider information via the `bazaar` extension. This allows AI agents to find, understand, and pay for the service autonomously through the public [Kobaru Bazaar](https://docs.kobaru.io/bazaar-discovery).
 -   **The Great Barrier (x402 v2)**: The API invokes the standard `402 Payment Required` ward, inscribing payment instructions into the very headers of reality.
 -   **The Warding Sigil (URL Security)**: The Wizard only listens to authentic messengers. All URLs are validated against a sacred list of legitimate YouTube domains, and HTTPS is enforced—protecting the citadel from malicious summoning attempts.
 -   **Structure of the Citadel (Clean Architecture)**: The inner sanctum (Domain) is protected from the outer chaos (Infrastructure & API).
@@ -160,7 +160,7 @@ The tower is built with the geometry of the Ancients (Clean Architecture):
 
 -   **The Inner Sanctum (Core)**: Pure entities (`Transcript`, `Wisdom`) and the essence of logic (`WisdomService`), untouched by the shifting sands of frameworks.
 -   **The Outer Walls (Infra)**: Adapters that commune with the external worlds of `Gemini` and `YouTube`.
--   **The Gate (Presentation)**: A Hono server acting as the gatekeeper, speaking the tongue of HTTP and enforcing the x402 payment pacts.
+-   **The Gate (Presentation)**: A Hono server (`app.ts`) acting as the gatekeeper, speaking the tongue of HTTP and enforcing the x401/402 payment pacts. It uses a **Discovery Helper** (`discovery-helper.ts`) to provide enriched metadata to the Bazaar.
 
 ## 📜 The Source of Power (Credits)
 

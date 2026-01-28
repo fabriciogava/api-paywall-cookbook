@@ -5,7 +5,8 @@ import { paymentMiddleware, x402ResourceServer, HonoAdapter } from "@x402/hono";
 import { Network } from "@x402/core/types";
 import { ExactSvmScheme } from "@x402/svm/exact/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
-import { declareDiscoveryExtension, bazaarResourceServerExtension } from "@x402/extensions/bazaar";
+import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
+import { enrichDiscoveryExtension } from "./discovery-helper.js";
 import { config } from "../../infra/config/index.js";
 import { WisdomService } from "../../core/usecases/WisdomService.js";
 import { TranscriptNotFoundError, TranscriptEmptyError, InvalidUrlError } from "../../core/entities/Errors.js";
@@ -43,13 +44,46 @@ const wisdomService = new WisdomService(youtubeAdapter, vertexAIAdapter, memoryS
 // We connect to the public Kobaru facilitator or a self-hosted one to check proofs.
 const facilitatorClient = new HTTPFacilitatorClient({
     url: config.FACILITATOR_URL,
+    createAuthHeaders: async () => {
+        const headers: Record<string, string> = {};
+        if (config.KOBARU_API_KEY) {
+            headers["Authorization"] = `Bearer ${config.KOBARU_API_KEY}`;
+        }
+        return {
+            verify: headers,
+            settle: headers,
+            supported: headers
+        };
+    }
 });
+
+// Log API Key usage status
+if (config.KOBARU_API_KEY) {
+    console.log("[INFO] 🟢 Kobaru API Key configured. Using authenticated facilitator requests.");
+} else {
+    console.log("[WARN] 🟡 No Kobaru API Key found. Facilitator requests will be unauthenticated.");
+}
 
 // The ResourceServer is our gatekeeper. It holds the rules for checking payments.
 // We register the "ExactSvmScheme", which means we expect exact payments on the Solana Virtual Machine (SVM).
 const resourceServer = new x402ResourceServer(facilitatorClient);
 resourceServer.register(config.SOLANA_NETWORK_ID as Network, new ExactSvmScheme());
 resourceServer.registerExtension(bazaarResourceServerExtension);
+
+// Log Facilitator Responses
+resourceServer
+    .onAfterVerify(async ({ result }) => {
+        console.log(`[INFO] ✅ Payment Verified used facilitator:`, JSON.stringify(result, null, 2));
+    })
+    .onVerifyFailure(async ({ error }) => {
+        console.error(`[ERROR] ❌ Payment Verification Failed:`, error);
+    })
+    .onAfterSettle(async ({ result }) => {
+        console.log(`[INFO] 💰 Payment Settled:`, JSON.stringify(result, null, 2));
+    })
+    .onSettleFailure(async ({ error }) => {
+        console.error(`[ERROR] ❌ Settlement Failed:`, error);
+    });
 
 // ==========================================
 // 3. WEB SERVER SETUP (Hono)
@@ -150,53 +184,47 @@ const wisdomPaymentConfig = {
     },
     description: "Wisdom extracted from YouTube video",
     mimeType: "application/json",
-    extensions: {
-        // "Bazaar" Extension: Makes this API discoverable by AI agents.
-        // We declare what inputs we accept so agents can auto-generate the client code.
-        ...declareDiscoveryExtension({
-            input: { url: "https://www.youtube.com/watch?v=s41p7Fvj1h8" }, // Example input
-            inputSchema: {
-                properties: {
-                    url: {
-                        type: "string",
-                        description: "YouTube Video URL to extract wisdom from"
-                    },
-                    language: {
-                        type: "string",
-                        description: "Target language for the wisdom (e.g. 'en', 'es', 'pt')"
-                    }
+    extensions: enrichDiscoveryExtension({
+        title: "Wizard's Wisdom API",
+        method: "POST",
+        bodyType: "json",
+        input: {
+            url: "https://www.youtube.com/watch?v=s41p7Fvj1h8",
+            language: "en"
+        },
+        inputSchema: {
+            properties: {
+                url: {
+                    type: "string",
+                    description: "YouTube Video URL to extract wisdom from"
                 },
-                required: ["url"]
-            },
-            output: {
-                example: {
-                    summary: "A 25-word summary of the video content and presenter.",
-                    ideas: ["Key idea extracted from the content (16 words each)."],
-                    insights: ["Refined, abstracted insight from the content (16 words each)."],
-                    quotes: ["Notable quote from the speaker with attribution."],
-                    habits: ["Practical habit mentioned by the speaker (16 words each)."],
-                    facts: ["Interesting fact about the world mentioned (16 words each)."],
-                    references: ["Book, tool, or project mentioned by the speaker."],
-                    one_sentence_takeaway: "The most important 15-word takeaway from the content.",
-                    recommendations: ["Actionable recommendation from the content (16 words each)."]
-                },
-                schema: {
-                    properties: {
-                        summary: { type: "string", description: "25-word summary including presenter and topic" },
-                        ideas: { type: "array", items: { type: "string" }, description: "20-50 surprising/insightful ideas (16 words each)" },
-                        insights: { type: "array", items: { type: "string" }, description: "10-20 refined, abstracted insights (16 words each)" },
-                        quotes: { type: "array", items: { type: "string" }, description: "15-30 notable quotes with speaker attribution" },
-                        habits: { type: "array", items: { type: "string" }, description: "15-30 practical habits (16 words each)" },
-                        facts: { type: "array", items: { type: "string" }, description: "15-30 interesting facts (16 words each)" },
-                        references: { type: "array", items: { type: "string" }, description: "All mentioned books, tools, projects, sources" },
-                        one_sentence_takeaway: { type: "string", description: "15-word sentence capturing the essence" },
-                        recommendations: { type: "array", items: { type: "string" }, description: "15-30 actionable recommendations (16 words each)" }
-                    },
-                    required: ["summary", "ideas", "insights", "quotes", "habits", "facts", "references", "one_sentence_takeaway", "recommendations"]
+                language: {
+                    type: "string",
+                    description: "Target language for the wisdom (e.g. 'en', 'es', 'pt')"
                 }
+            },
+            required: ["url"]
+        },
+        output: {
+            example: {
+                summary: "A 25-word summary of the video content and presenter.",
+                ideas: ["Key idea extracted from the content (16 words each)."],
+                insights: ["Refined, abstracted insight from the content (16 words each)."],
+                quotes: ["Notable quote from the speaker with attribution."],
+                habits: ["Practical habit mentioned by the speaker (16 words each)."],
+                facts: ["Interesting fact about the world mentioned (16 words each)."],
+                references: ["Book, tool, or project mentioned by the speaker."],
+                one_sentence_takeaway: "The most important 15-word takeaway from the content.",
+                recommendations: ["Actionable recommendation from the content (16 words each)."]
             }
-        })
-    }
+        },
+        tags: ['ai', 'content-analysis', 'video-processing'],
+        provider: {
+            name: "Kobaru.io",
+            description: "The team behind x402 protocol and the Wizard's Wisdom example.",
+            url: "https://kobaru.io"
+        }
+    })
 };
 
 /**
