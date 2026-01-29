@@ -147,13 +147,13 @@ Perfect for:
 
 ## 📚 Examples
 
-### By Language
+### By Stack
 
-| Language | Examples | Status |
+| Stack | Examples | Status |
 |----------|----------|--------|
-| **Node.js** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
-| **Bun** | [Socratic Mentor API](examples/bun/socratic-mentor-api) | ✅ Available |
-| **Go** | [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
+| **Hono/Node.js** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api) | ✅ Available |
+| **Hono/Bun** | [Socratic Mentor API](examples/bun/socratic-mentor-api) | ✅ Available |
+| **Go/Gin** | [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
 | **Rust** | [Oracle of Babel](examples/rust/oracle-of-babel) | ✅ Available |
 | **Python** | FastAPI, Flask | 🔜 Coming Soon |
 
