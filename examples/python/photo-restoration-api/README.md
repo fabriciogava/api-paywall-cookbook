@@ -55,7 +55,7 @@ You pay **$0.10 USDC per restoration** on the SKALE network, which offers ~1 sec
 <td width="50%">
 
 **Restored Photo**
-![Rubens Paiva Family - Restored](assets/images/rubens-paiva-family-restored.jpg)
+![Rubens Paiva Family - Restored](assets/images/rubens-paiva-family-restored.jpeg)
 
 </td>
 </tr>
@@ -79,7 +79,7 @@ You pay **$0.10 USDC per restoration** on the SKALE network, which offers ~1 sec
 <td width="50%">
 
 **Restored Photo**
-![Passeata dos Cem Mil 1968 - Restored](assets/images/passeata-cem-mil-1968-restored.jpg)
+![Passeata dos Cem Mil 1968 - Restored](assets/images/passeata-cem-mil-1968-restored.jpeg)
 
 </td>
 </tr>
