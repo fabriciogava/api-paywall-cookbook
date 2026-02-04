@@ -65,17 +65,20 @@ EVM_PRIVATE_KEY=your_hex_private_key_here
 | `solana-mainnet` | Solana Mainnet | SVM | Live Fire |
 | `base` | Base Sepolia | EVM | Simulation |
 | `base-mainnet` | Base Mainnet | EVM | Live Fire |
+| `skale` | SKALE Base Sepolia | EVM | Simulation |
+| `skale-mainnet` | SKALE Base Mainnet | EVM | Live Fire |
 
-> **INTEL:** Network aliases are accepted: `solana-devnet` maps to `solana`, and `base-sepolia` or `base-devnet` map to `base`.
+> **INTEL:** Network aliases are accepted: `solana-devnet` maps to `solana`, `base-sepolia` or `base-devnet` map to `base`, and `skale-devnet` or `skale-testnet` map to `skale`.
 
 **Command Syntax:**
 ```bash
-npm start [URL] [JSON_BODY] --network <network> [--timeout <ms>]
+npm start [URL] [JSON_BODY] --network <network> [--file <path>] [--timeout <ms>]
 ```
 
 | Flag | Short | Required | Description |
 |------|-------|----------|-------------|
-| `--network` | `-n` | Yes | Target network (solana, solana-mainnet, base, base-mainnet) |
+| `--network` | `-n` | Yes | Target network (solana, solana-mainnet, base, base-mainnet, skale, skale-mainnet) |
+| `--file` | `-f` | No | Path to file to upload (automatically encodes to base64 JSON) |
 | `--timeout` | `-t` | No | Request timeout in milliseconds (default: no timeout) |
 
 **Audit Specific Targets:**
@@ -125,6 +128,54 @@ The agent automatically:
 - Includes your payload in the request body
 
 This is useful for testing APIs that accept questions, queries, or other structured input behind a paywall.
+
+### File Upload Support (Image Transmission)
+
+The agent supports uploading files (especially images) to paywalled endpoints without the "Argument list too long" error that occurs when passing large base64 strings on the command line.
+
+**Using the --file flag:**
+
+```bash
+npm start http://localhost:3000/restore --file path/to/image.jpg --network skale
+```
+
+The agent automatically:
+- Reads the file from disk
+- Encodes it to base64
+- Creates a JSON payload: `{"image": "base64-data", "filename": "image.jpg"}`
+- Sets the HTTP method to `POST`
+- Applies `Content-Type: application/json` header
+- **Saves the response image** to disk with `-response.{ext}` suffix
+
+**Example with photo restoration API:**
+
+```bash
+# Original command (causes "Argument list too long" error):
+npm start http://localhost:3000/restore \
+  "$(base64 -w 0 photo.jpg | jq -R '{image: .}')" \
+  --network skale
+
+# New command (works perfectly):
+npm start http://localhost:3000/restore \
+  --file photo.jpg \
+  --network skale
+
+# Result: Creates photo-response.jpg in the same directory
+```
+
+**Automatic Image Saving:**
+
+When you upload an image file via `--file` and the API returns an image response (with `result.data` containing base64), the agent automatically:
+1. Detects the image response format (JPEG, PNG, etc.)
+2. Decodes the base64 data
+3. Saves the output file as: `{original-name}-response.{format}`
+4. Places it in the same directory as the input file
+
+**Use Cases:**
+- **Photo Restoration APIs:** Send old photos and automatically save restored versions
+- **Image Processing APIs:** Upload images for filters, transformations, etc.
+- **Computer Vision APIs:** Send images for analysis or enhancement
+- **Any API that accepts base64-encoded files**
 
 ### Safety Protocols (License to Kill)
 The agent performs real-time environment detection to protect your assets:

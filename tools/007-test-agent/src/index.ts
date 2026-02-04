@@ -38,6 +38,8 @@ import { privateKeyToAccount } from "viem/accounts";
 import { base58 } from "@scure/base";
 import dotenv from "dotenv";
 import * as readline from 'readline';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Import our modular, testable CLI functions
 import {
@@ -161,7 +163,7 @@ async function main() {
         process.exit(1);
     }
 
-    const { targetUrl, requestBody, network: selectedNetwork, timeout } = parsedArgs;
+    const { targetUrl, requestBody, network: selectedNetwork, timeout, filePath } = parsedArgs;
 
     /**
      * STEP 2: Validate the target URL for security
@@ -191,6 +193,7 @@ async function main() {
      * If a JSON body is provided, we validate it before sending to ensure proper
      * formatting. Malformed JSON would cause cryptic server errors.
      */
+    let finalRequestBody = requestBody;
     if (requestBody) {
         try {
             validateJson(requestBody);
@@ -199,6 +202,53 @@ async function main() {
             console.error(`❌ CRITICAL FAILURE: ${error instanceof Error ? error.message : String(error)}`);
             console.error("   Request body must be valid JSON.");
             console.error(`   Example: '{"key":"value"}'`);
+            process.exit(1);
+        }
+    }
+
+    /**
+     * STEP 3.5: Handle file input (if provided)
+     *
+     * FILE UPLOADS:
+     * If a file path is provided via --file flag, we:
+     * 1. Read the file from disk
+     * 2. Encode it to base64
+     * 3. Create a JSON body with the format: {"image": "base64-data", "filename": "original-name.ext"}
+     *
+     * This simplifies testing image APIs by avoiding the "Argument list too long" error
+     * that occurs when passing large base64 strings on the command line.
+     */
+    if (filePath) {
+        try {
+            logInfo(`Reading file from disk: ${filePath}`);
+
+            // Check if file exists
+            if (!fs.existsSync(filePath)) {
+                throw new Error(`File not found: ${filePath}`);
+            }
+
+            // Read file and encode to base64
+            const fileBuffer = fs.readFileSync(filePath);
+            const base64Data = fileBuffer.toString('base64');
+            const fileName = path.basename(filePath);
+
+            logDetail("File Name", fileName);
+            logDetail("File Size", `${fileBuffer.length} bytes`);
+            logDetail("Base64 Size", `${base64Data.length} characters`);
+
+            // Create JSON body with image and filename
+            const filePayload = {
+                image: base64Data,
+                filename: fileName
+            };
+            finalRequestBody = JSON.stringify(filePayload);
+
+            logInfo(`✅ File successfully encoded to base64 and packaged as JSON`);
+            logExplanation("The file has been read from disk and encoded. We're now ready to send it to the API.");
+        } catch (error) {
+            console.error(`❌ CRITICAL FAILURE: ${error instanceof Error ? error.message : String(error)}`);
+            console.error("   Failed to read or encode the file.");
+            console.error(`   Make sure the file path is correct and the file is readable.`);
             process.exit(1);
         }
     }
@@ -420,8 +470,10 @@ async function main() {
 
             // Convert atomic units to human-readable USDC amount
             // Atomic units: 1 USDC = 1,000,000 units (6 decimals)
-            const priceInUSDC = selected.price / 1_000_000;
-            logDetail("Price", `${selected.price} atomic units (${priceInUSDC.toFixed(6)} USDC)`);
+            // x402 v2 uses "amount" field instead of "price"
+            const amount = selected.amount || selected.price || 0;
+            const priceInUSDC = amount / 1_000_000;
+            logDetail("Price", `${amount} atomic units (${priceInUSDC.toFixed(6)} USDC)`);
             logExplanation(`Atomic units are like cents to dollars. 1 USDC = 1,000,000 atomic units.`);
 
             logDetail("Asset (Token)", selected.asset);
@@ -841,9 +893,12 @@ async function main() {
 
     logSection("PHASE 1: RECONNAISSANCE", "📡");
     logInfo(`Target: ${targetUrl}`);
-    logInfo(`Method: ${requestBody ? 'POST' : 'GET'}`);
-    if (requestBody) {
-        logDetail("Request Body", requestBody);
+    logInfo(`Method: ${finalRequestBody ? 'POST' : 'GET'}`);
+    if (finalRequestBody && !filePath) {
+        // Only show request body if it wasn't a file (to avoid flooding console with base64)
+        logDetail("Request Body", finalRequestBody);
+    } else if (finalRequestBody && filePath) {
+        logInfo(`Request Body: JSON payload with base64-encoded image`);
     }
     logExplanation("We are about to make the first request without any credentials to see if it's protected.");
 
@@ -872,9 +927,9 @@ async function main() {
         const startTime = performance.now();
 
         const fetchOptions: RequestInit = {};
-        if (requestBody) {
+        if (finalRequestBody) {
             fetchOptions.method = "POST";
-            fetchOptions.body = requestBody;
+            fetchOptions.body = finalRequestBody;
             fetchOptions.headers = {
                 "Content-Type": "application/json"
             };
@@ -906,13 +961,69 @@ async function main() {
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
             data = await response.json();
-            logDetail("Decoded JSON Body", data);
+            // Don't log full response if it contains large base64 image data
+            if (data && data.result && data.result.data && typeof data.result.data === 'string' && data.result.data.length > 1000) {
+                logInfo("Received JSON response with large base64 image data");
+                logDetail("Response Structure", {
+                    success: data.success,
+                    message: data.message,
+                    result: {
+                        format: data.result?.format,
+                        encoding: data.result?.encoding,
+                        size_bytes: data.result?.size_bytes,
+                        data: `<base64 data: ${data.result.data.length} characters>`
+                    }
+                });
+            } else {
+                logDetail("Decoded JSON Body", data);
+            }
         } else {
             data = await response.text();
             logDetail("Decoded Text Body", data);
         }
 
         if (response.ok) {
+            /**
+             * IMAGE RESPONSE HANDLING:
+             * If we sent a file and received an image response, save it to disk
+             *
+             * AUTOMATIC SAVE:
+             * We detect image responses by checking for:
+             * - JSON response with result.data field containing base64
+             * - result.format field indicating image format (JPEG, PNG, etc.)
+             *
+             * The saved file will be named: original-name-response.ext
+             * For example: photo.jpg → photo-response.jpg
+             */
+            if (filePath && data && typeof data === 'object' && data.result && data.result.data) {
+                try {
+                    logSection("PHASE 4.5: SAVING IMAGE RESPONSE", "💾");
+
+                    const imageBase64 = data.result.data;
+                    const imageFormat = (data.result.format || 'jpg').toLowerCase();
+
+                    // Decode base64 to buffer
+                    const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+                    // Generate output filename: original-name-response.ext
+                    const inputFileDir = path.dirname(filePath);
+                    const inputFileName = path.basename(filePath, path.extname(filePath));
+                    const outputFileName = `${inputFileName}-response.${imageFormat}`;
+                    const outputFilePath = path.join(inputFileDir, outputFileName);
+
+                    // Write to disk
+                    fs.writeFileSync(outputFilePath, imageBuffer);
+
+                    logInfo(`✅ Image saved successfully!`);
+                    logDetail("Output File", outputFilePath);
+                    logDetail("Image Format", imageFormat.toUpperCase());
+                    logDetail("File Size", `${imageBuffer.length} bytes`);
+                    logExplanation("The restored image has been decoded from base64 and saved to disk in the same directory as the original.");
+                } catch (saveError) {
+                    console.error(`⚠️  Failed to save image: ${saveError instanceof Error ? saveError.message : String(saveError)}`);
+                    console.error("   The API response was successful, but we couldn't save the image to disk.");
+                }
+            }
             // ============================================================
             // PHASE 5: PAYMENT CONFIRMATION
             // ============================================================

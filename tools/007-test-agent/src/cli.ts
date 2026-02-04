@@ -6,7 +6,7 @@
  */
 
 // Valid network options for the --network flag
-const VALID_NETWORKS = ["solana-mainnet", "solana", "base-mainnet", "base"] as const;
+const VALID_NETWORKS = ["solana-mainnet", "solana", "base-mainnet", "base", "skale-mainnet", "skale"] as const;
 export type NetworkOption = typeof VALID_NETWORKS[number];
 
 export interface ParsedArgs {
@@ -14,6 +14,7 @@ export interface ParsedArgs {
     requestBody?: string;
     network?: NetworkOption;
     timeout?: number;
+    filePath?: string;
 }
 
 export interface ParseOptions {
@@ -34,11 +35,18 @@ export function parseArgs(options: ParseOptions = {}): ParsedArgs {
     let requestBody: string | undefined;
     let network: NetworkOption | undefined;
     let timeout: number | undefined;
+    let filePath: string | undefined;
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
 
-        if (arg === "--network" || arg === "-n") {
+        if (arg === "--file" || arg === "-f") {
+            const value = args[++i];
+            if (!value || value.startsWith("-")) {
+                throw new Error("--file flag requires a file path");
+            }
+            filePath = value;
+        } else if (arg === "--network" || arg === "-n") {
             let value = args[++i];
             if (!value || value.startsWith("-")) {
                 throw new Error("--network flag requires a value");
@@ -49,6 +57,8 @@ export function parseArgs(options: ParseOptions = {}): ParsedArgs {
                 "solana-devnet": "solana",
                 "base-sepolia": "base",
                 "base-devnet": "base",
+                "skale-devnet": "skale",
+                "skale-testnet": "skale",
             };
             if (networkAliases[value]) {
                 value = networkAliases[value];
@@ -88,7 +98,7 @@ export function parseArgs(options: ParseOptions = {}): ParsedArgs {
         }
     }
 
-    return { targetUrl, requestBody, network, timeout };
+    return { targetUrl, requestBody, network, timeout, filePath };
 }
 
 /**
@@ -139,15 +149,21 @@ export interface NetworkConfig {
     isMainnet: boolean;
 }
 
-const SOLANA_MAINNET_CHAIN_ID: Caip2ChainId = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
-const SOLANA_DEVNET_CHAIN_ID: Caip2ChainId = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
+// Network Chain IDs (CAIP-2 format) - Source: https://docs.kobaru.io/concepts/networks-assets
+const SOLANA_MAINNET_CHAIN_ID: Caip2ChainId = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
+const SOLANA_DEVNET_CHAIN_ID: Caip2ChainId = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
 const BASE_MAINNET_CHAIN_ID: Caip2ChainId = "eip155:8453";
 const BASE_SEPOLIA_CHAIN_ID: Caip2ChainId = "eip155:84532";
+const SKALE_MAINNET_CHAIN_ID: Caip2ChainId = "eip155:1187947933";
+const SKALE_SEPOLIA_CHAIN_ID: Caip2ChainId = "eip155:324705682"; // SKALE Base Sepolia testnet
 
-const SOLANA_DEVNET_USDC = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+// USDC Token Addresses - Source: https://docs.kobaru.io/concepts/networks-assets
 const SOLANA_MAINNET_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const SOLANA_DEVNET_USDC = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 const BASE_MAINNET_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+const SKALE_MAINNET_USDC = "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20";
+const SKALE_SEPOLIA_USDC = "0x2e08028E3C4c2356572E096d8EF835cD5C6030bD";
 
 /**
  * Get network configuration for a given network option
@@ -178,6 +194,18 @@ export function getNetworkConfig(network: NetworkOption): NetworkConfig {
             type: 'evm',
             chainId: BASE_SEPOLIA_CHAIN_ID,
             asset: BASE_SEPOLIA_USDC,
+            isMainnet: false,
+        },
+        "skale-mainnet": {
+            type: 'evm',
+            chainId: SKALE_MAINNET_CHAIN_ID,
+            asset: SKALE_MAINNET_USDC,
+            isMainnet: true,
+        },
+        "skale": {
+            type: 'evm',
+            chainId: SKALE_SEPOLIA_CHAIN_ID,
+            asset: SKALE_SEPOLIA_USDC,
             isMainnet: false,
         },
     };
