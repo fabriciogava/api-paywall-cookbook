@@ -53,7 +53,8 @@ api-paywall-cookbook/
 │   ├── go/
 │   │   ├── vulcan-logic-api/      # Production-ready Go implementation (Gin + x402)
 │   │   └── ...
-│   ├── python/                    # Coming soon
+│   ├── python/
+│   │   └── photo-restoration-api/ # AI photo restoration (FastAPI + OpenCV + Gemini)
 │   └── advanced/                  # Coming soon
 ├── tools/
 │   └── 007-test-agent/            # Universal x402 API testing tool
@@ -67,8 +68,8 @@ api-paywall-cookbook/
 ### Prerequisites
 
 - A [Kobaru account](https://www.kobaru.io/signup) (or self-hosted facilitator)
-- A wallet with funds on a supported blockchain (Base, Solana, etc.)
-- Node.js 18+, Python 3.10+, or Go 1.23+ (depending on the example)
+- A wallet with funds on a supported blockchain (Solana, Base, SKALE, etc.)
+- Node.js 18+, Python 3.12+, or Go 1.23+ (depending on the example)
 
 ### Quick Start
 
@@ -124,6 +125,7 @@ All cookbook examples are deployed to production. You can test them directly:
 | 🔮 Oracle of Babel | Infinite Library of Babel (Deterministic) | $0.001 | Solana |
 | 🖖 Vulcan Logic API | Logical advice from Mr. Spock (AI-powered) | $0.001 | Base Sepolia |
 | 🎓 Socratic Mentor API | AI tutor using the Socratic method + mini-ledger | Dynamic | SKALE |
+| 📸 Photo Restoration API | AI-powered old photo restoration and colorization | $0.10 | SKALE |
 
 *More APIs coming soon!*
 
@@ -198,7 +200,7 @@ Even if you're not using AI tools, `CLAUDE.md` is a comprehensive reference for 
 | **Hono/Bun** | [Socratic Mentor API](examples/bun/socratic-mentor-api) | ✅ Available |
 | **Go/Gin** | [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
 | **Rust** | [Oracle of Babel](examples/rust/oracle-of-babel) | ✅ Available |
-| **Python** | FastAPI, Flask | 🔜 Coming Soon |
+| **Python/FastAPI** | [Photo Restoration API](examples/python/photo-restoration-api) | ✅ Available |
 
 ### By Blockchain
 
@@ -206,6 +208,7 @@ Even if you're not using AI tools, `CLAUDE.md` is a comprehensive reference for 
 |---------|----------|--------|
 | **Solana** | [Deep Thought API](examples/nodejs/deep-thought-api), [Extract Wisdom API](examples/nodejs/extract-wisdom-api), [Oracle of Babel](examples/rust/oracle-of-babel) | ✅ Available |
 | **Base** | [Deep Thought API](examples/nodejs/deep-thought-api), [Vulcan Logic API](examples/go/vulcan-logic-api) | ✅ Available |
+| **SKALE** | [Socratic Mentor API](examples/bun/socratic-mentor-api), [Photo Restoration API](examples/python/photo-restoration-api) | ✅ Available |
 
 ### By Complexity
 
@@ -213,7 +216,7 @@ Even if you're not using AI tools, `CLAUDE.md` is a comprehensive reference for 
 |-------|-------------|----------|
 | 🎮 **God Mode** | Zero code — Transparent proxy integration | [No-Code Paywall](examples/no-code) |
 | 🟢 **Beginner** | Simple single-endpoint APIs | [Deep Thought API](examples/nodejs/deep-thought-api), [Vulcan Logic API](examples/go/vulcan-logic-api) |
-| 🟡 **Intermediate** | Dynamic pricing, external integrations | [Extract Wisdom API](examples/nodejs/extract-wisdom-api) |
+| 🟡 **Intermediate** | Dynamic pricing, external integrations | [Extract Wisdom API](examples/nodejs/extract-wisdom-api), [Photo Restoration API](examples/python/photo-restoration-api) |
 | 🔴 **Advanced** | Mini-ledger, optimistic flow, custom payment handling | [Oracle of Babel](examples/rust/oracle-of-babel), [Socratic Mentor API](examples/bun/socratic-mentor-api) |
 
 ---
@@ -260,12 +263,13 @@ With Kobaru, you don't need to handle blockchain interactions directly. Simply:
 
 ### 007 Test Agent
 
-A universal testing tool for x402-enabled APIs. Test **any** paywalled endpoint (local, remote, third-party) with Solana payments.
+A universal testing tool for x402-enabled APIs. Test **any** paywalled endpoint (local, remote, third-party) with automatic payment handling.
 
 **Features:**
 - ✅ Works with any x402-compliant API
 - ✅ Detailed logging of the payment flow
-- ✅ Support for Solana mainnet and devnet
+- ✅ Support for Solana, SKALE, Base, and other EVM chains
+- ✅ File upload support with automatic base64 encoding
 - ✅ Simple command-line interface
 
 **Quick Usage:**
@@ -352,7 +356,7 @@ Most people start with the transparent proxy for speed, then migrate to SDK inte
 <details>
 <summary><strong>Which blockchains are supported?</strong></summary>
 
-Currently, x402 and Kobaru support Base, Solana, and other EVM-compatible chains. Check the [Kobaru docs](https://docs.kobaru.io) for the latest list.
+Currently, x402 and Kobaru support Base, Solana, SKALE, and other EVM-compatible chains. Check the [Kobaru docs](https://docs.kobaru.io) for the latest list.
 </details>
 
 ---

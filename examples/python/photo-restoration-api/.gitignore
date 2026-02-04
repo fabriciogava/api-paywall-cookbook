@@ -1,0 +1,153 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+pythonenv*/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.cover
+.hypothesis/
+.tox/
+nosetests.xml
+coverage.xml
+*.coveragerc
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~.nib
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Distribution / packaging
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.cache
+
+# Translations
+*.mo
+*.pot
+
+# Flask/Django stuff
+instance/
+.webassets-cache
+local_settings.py
+db.sqlite3-journal
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# Profiling data
+.prof
+
+# Development artifacts
+FIXES_APPLIED.md
+README_SECURITY_UPDATE.md
+TEST_RESULTS.md
+test_restoration_demo.py

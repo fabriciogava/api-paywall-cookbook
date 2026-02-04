@@ -1,0 +1,88 @@
+version: '3.8'
+
+# Docker Compose configuration for Photo Restoration API
+# This makes it easy to run the API locally with all dependencies
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+
+    # Container name
+    container_name: photo-restoration-api
+
+    # Port mapping (host:container)
+    ports:
+      - "3000:3000"
+
+    # Environment variables
+    # IMPORTANT: Replace these with your actual values or use .env file
+    environment:
+      # Required: Your SKALE wallet address (receives payments)
+      - SKALE_WALLET_ADDRESS=${SKALE_WALLET_ADDRESS}
+
+      # Required: Google Gemini API key
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+      # Optional: Kobaru facilitator URL (default shown)
+      - FACILITATOR_URL=${FACILITATOR_URL:-https://gateway.kobaru.io}
+
+      # Optional: Kobaru API key for premium features
+      - KOBARU_API_KEY=${KOBARU_API_KEY}
+
+      # Optional: Server port (default 3000)
+      - PORT=${PORT:-3000}
+
+      # Optional: Price per restoration (default $0.10)
+      - RESTORATION_PRICE=${RESTORATION_PRICE:-$0.10}
+
+      # Optional: Blockchain network (CAIP-2 format, default SKALE mainnet)
+      - NETWORK_ID=${NETWORK_ID:-eip155:1187947933}
+
+      # Optional: USDC token address on the selected network
+      - ASSET_ADDRESS=${ASSET_ADDRESS:-0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20}
+
+    # Load environment variables from .env file
+    # Create a .env file in the same directory as this docker-compose.yml
+    env_file:
+      - ../../.env
+
+    # Restart policy: always restart if the container stops
+    restart: unless-stopped
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits (optional but recommended for production)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+# Usage:
+#
+# 1. Create .env file with your configuration:
+#    SKALE_WALLET_ADDRESS=0x...
+#    GEMINI_API_KEY=...
+#
+# 2. Start the service:
+#    docker compose -f deploy/docker/docker-compose.yml up -d
+#
+# 3. View logs:
+#    docker compose -f deploy/docker/docker-compose.yml logs -f
+#
+# 4. Stop the service:
+#    docker compose -f deploy/docker/docker-compose.yml down
+#
+# 5. Rebuild after code changes:
+#    docker compose -f deploy/docker/docker-compose.yml up -d --build

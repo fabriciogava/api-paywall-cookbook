@@ -1,0 +1,30 @@
+# Photo Restoration API - Python Dependencies
+
+# Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# x402 Payment SDK v2
+# Install with FastAPI and EVM support
+x402[fastapi,evm]>=2.0.0
+
+# Image Processing
+opencv-python>=4.10.0
+Pillow>=10.4.0
+numpy>=1.26.0
+
+# AI/ML - Google Gemini (New unified SDK)
+google-genai>=1.0.0
+
+# Utilities
+python-dotenv>=1.0.0     # For .env file support (optional, for local dev)
+
+# Type hints and validation
+pydantic>=2.10.0
+typing-extensions>=4.12.0
+
+# Testing (Development)
+pytest>=8.0.0
+pytest-asyncio>=0.25.0
+pytest-cov>=4.1.0
+httpx>=0.27.0            # For TestClient in FastAPI tests
