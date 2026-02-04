@@ -4,13 +4,13 @@
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![x402 Protocol](https://img.shields.io/badge/protocol-x402-purple.svg)](https://github.com/coinbase/x402)
-[![Kobaru Gateway](https://img.shields.io/badge/gateway-Kobaru-orange.svg)](https://kobaru.io)
+[![Kobaru Gateway](https://img.shields.io/badge/gateway-Kobaru-orange.svg)](https://www.kobaru.io)
 
 ---
 
 ## 📖 About This Project
 
-The **API Paywall Cookbook** is an open-source collection of production-ready examples demonstrating how to monetize APIs using the [x402 protocol](https://github.com/coinbase/x402) and the [Kobaru gateway](https://kobaru.io).
+The **API Paywall Cookbook** is an open-source collection of production-ready examples demonstrating how to monetize APIs using the [x402 protocol](https://github.com/coinbase/x402) and the [Kobaru gateway](https://www.kobaru.io).
 
 The x402 protocol brings the long-promised HTTP 402 "Payment Required" status code to life, enabling native micropayments for the machine economy. Kobaru acts as a facilitator gateway that handles payment verification, settlement, and provides a seamless developer experience.
 
@@ -66,7 +66,7 @@ api-paywall-cookbook/
 
 ### Prerequisites
 
-- A [Kobaru account](https://kobaru.io/signup) (or self-hosted facilitator)
+- A [Kobaru account](https://www.kobaru.io/signup) (or self-hosted facilitator)
 - A wallet with funds on a supported blockchain (Base, Solana, etc.)
 - Node.js 18+, Python 3.10+, or Go 1.23+ (depending on the example)
 
@@ -142,6 +142,49 @@ Perfect for:
 - Quick prototypes and MVPs
 - APIs where you don't control the code
 - Anyone who wants the easiest path to monetization
+
+---
+
+## 🤖 Developer Guide: Using CLAUDE.md
+
+This repository includes a [`CLAUDE.md`](CLAUDE.md) file that documents all the architectural patterns, best practices, and implementation details used across the cookbook examples.
+
+### What's in CLAUDE.md?
+
+- **x402 payment integration patterns** for different frameworks (Hono, Gin, Actix)
+- **Multi-platform deployment** strategies (Node.js, Cloudflare Workers, Docker)
+- **Environment configuration** and validation patterns
+- **Multi-blockchain support** (Solana, Base, EVM chains)
+- **Mandatory patterns** for maintaining consistency across examples
+- **Code references** from real production examples
+
+### Why is this useful?
+
+When working with AI coding assistants like [Claude Code](https://claude.ai/code), the `CLAUDE.md` file serves as a knowledge base that helps generate consistent, production-ready code following established patterns.
+
+**Example prompts you can use:**
+
+```
+"Create a new Node.js API that returns dad jokes and charges $0.01 per request on Solana"
+
+"Add Base network support to the deep-thought-api"
+
+"Help me debug why my x402 middleware returns 500 instead of 402"
+
+"Convert the vulcan-logic-api from Go to Python using FastAPI"
+```
+
+The AI will follow the patterns documented in CLAUDE.md, ensuring your code matches the cookbook standards without manually reading through all the examples.
+
+### For manual development
+
+Even if you're not using AI tools, `CLAUDE.md` is a comprehensive reference for understanding:
+- How the payment flow works end-to-end
+- Required directory structures and naming conventions
+- Common pitfalls and how to avoid them
+- Quality checklist before submitting new examples
+
+**[Read CLAUDE.md →](CLAUDE.md)**
 
 ---
 
@@ -275,6 +318,7 @@ This project is licensed under the **Apache License 2.0** — see the [LICENSE](
 ## 🔗 Resources
 
 - **[Kobaru Documentation](https://docs.kobaru.io)** — Complete guide to using the Kobaru gateway
+- **[Kobaru Blog](https://blog.kobaru.io)** — Integration guides, best practices & updates (English, Portuguese, Spanish)
 - **[x402 Protocol Specification](https://github.com/coinbase/x402)** — The official x402 protocol repository
 - **[x402 SDKs](https://github.com/coinbase/x402#typescript)** — Official SDKs for TypeScript, Python, and Go
 
@@ -316,5 +360,5 @@ Currently, x402 and Kobaru support Base, Solana, and other EVM-compatible chains
 <p align="center">
   <strong>Built with 💜 for the machine economy</strong>
   <br>
-  <a href="https://kobaru.io">Kobaru</a> • <a href="https://github.com/coinbase/x402">x402 Protocol</a>
+  <a href="https://www.kobaru.io">Kobaru</a> • <a href="https://github.com/coinbase/x402">x402 Protocol</a>
 </p>
