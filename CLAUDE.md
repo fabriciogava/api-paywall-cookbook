@@ -17,6 +17,8 @@ The project follows a monorepo structure organized by language and example:
   - `socratic-mentor-api/` - Advanced patterns (mini-ledger, optimistic flow, dynamic pricing)
 - `examples/go/` - Go examples
   - `vulcan-logic-api/` - Production Go with Gin framework
+- `examples/python/` - Python examples
+  - `photo-restoration-api/` - AI photo restoration with FastAPI + OpenCV + Gemini
 - `examples/rust/` - Rust examples
   - `oracle-of-babel/` - Complex deterministic algorithm (Borges library)
 - `examples/no-code/` - Zero-code integration examples (transparent proxy)
@@ -56,6 +58,62 @@ npm run docker:run         # Run Docker container
 **Environment Variables:**
 - `RESOURCE_WALLET_ADDRESS` - Your wallet address to receive payments (required)
 - `FACILITATOR_URL` - Kobaru gateway URL (defaults to https://gateway.kobaru.io)
+- `PORT` - Server port (defaults to 3000)
+
+### Photo Restoration API (examples/python/photo-restoration-api)
+
+Python example using FastAPI with x402 payment middleware, OpenCV for image processing, and Gemini AI for photo restoration.
+
+**Development:**
+```bash
+cd examples/python/photo-restoration-api
+
+# Create virtual environment (choose one)
+python -m venv venv && source venv/bin/activate  # Standard pip
+uv venv && source .venv/bin/activate             # Modern uv tool
+
+# Install dependencies
+pip install -r requirements.txt   # Standard pip
+uv pip install -r requirements.txt  # uv (faster)
+
+# Run development server
+python deploy/standalone/main.py
+```
+
+**Testing:**
+```bash
+# Run all tests with coverage
+pytest --cov=src --cov-report=html --cov-report=term-missing
+
+# Run specific test categories
+pytest tests/unit/              # Unit tests only
+pytest tests/integration/       # Integration tests only
+pytest -m opencv                # OpenCV-specific tests
+```
+
+**Deployment:**
+```bash
+# Docker build
+docker build -t photo-restoration-api -f deploy/docker/Dockerfile .
+
+# Docker run
+docker run -p 3000:3000 \
+  -e SKALE_WALLET_ADDRESS=0x... \
+  -e GEMINI_API_KEY=... \
+  photo-restoration-api
+
+# Docker Compose
+docker compose -f deploy/docker/docker-compose.yml up -d
+```
+
+**Environment Variables:**
+- `SKALE_WALLET_ADDRESS` - Your Ethereum wallet address to receive payments (required)
+- `GEMINI_API_KEY` - Google AI API key for Gemini access (required)
+- `FACILITATOR_URL` - Kobaru gateway URL (defaults to https://gateway.kobaru.io)
+- `KOBARU_API_KEY` - Optional API key for Kobaru premium features
+- `RESTORATION_PRICE` - Price per restoration (defaults to $0.10)
+- `NETWORK_ID` - Blockchain network in CAIP-2 format (defaults to eip155:1187947933 for SKALE)
+- `ASSET_ADDRESS` - Token contract address (defaults to SKALE USDC)
 - `PORT` - Server port (defaults to 3000)
 
 ### 007 Test Agent (tools/007-test-agent)
@@ -273,6 +331,24 @@ func CreateApp(config AppConfig) *gin.Engine {
 }
 ```
 
+**Python Example:**
+```python
+# src/app.py
+class AppConfig(BaseModel):
+    """Platform-agnostic configuration"""
+    wallet_address: str
+    facilitator_url: str = "https://gateway.kobaru.io"
+    gemini_api_key: str
+    network_id: str = "eip155:1187947933"
+    asset_address: str = "0x85889c8c714505E0c94b30fcfcF64fE3Ac8FCb20"
+
+async def create_app(config: AppConfig) -> FastAPI:
+    """Factory function - no environment access here"""
+    app = FastAPI(...)
+    # ... setup x402 middleware, routes, etc.
+    return app
+```
+
 **Rust Example:**
 ```rust
 // src/api/mod.rs
@@ -293,6 +369,7 @@ pub fn create_app() -> App<
 **Evidence:**
 - Node.js: `examples/nodejs/deep-thought-api/src/app.ts:156-344`
 - Go: `examples/go/vulcan-logic-api/src/app.go:72-206`
+- Python: `examples/python/photo-restoration-api/src/app.py:274-611`
 - Rust: `examples/rust/oracle-of-babel/src/api/mod.rs:127-144`
 
 ### 3. Environment Configuration Pattern (REQUIRED)
@@ -400,6 +477,7 @@ app.get("/endpoint", async (c) => {
 **Evidence:**
 - Node.js: `examples/nodejs/deep-thought-api/src/app.ts:156-300`
 - Go: `examples/go/vulcan-logic-api/src/app.go:111-168`
+- Python: `examples/python/photo-restoration-api/src/app.py:361-423`
 - Rust: `examples/rust/oracle-of-babel/src/x402/middleware.rs:99-273`
 
 ### 5. Multi-Network Support Pattern (REQUIRED)
@@ -450,6 +528,7 @@ accepts: [
 **Evidence:**
 - Node.js: `examples/nodejs/deep-thought-api/src/app.ts:40-67`
 - Go: `examples/go/vulcan-logic-api/src/app.go:27-34`
+- Python: `examples/python/photo-restoration-api/src/app.py:243-245` (network config)
 
 ### 6. Standard Endpoints Pattern (REQUIRED)
 
@@ -480,6 +559,7 @@ app.get("/paid-endpoint", (c) => { /* ... */ })
 **Evidence:**
 - Node.js: `examples/nodejs/deep-thought-api/src/app.ts:304-341`
 - Go: `examples/go/vulcan-logic-api/src/app.go:171-203`
+- Python: `examples/python/photo-restoration-api/src/app.py:426-482` (root, health, paywalled endpoints)
 - Rust: `examples/rust/oracle-of-babel/src/api/mod.rs:38-131`
 
 ### 7. Docker Deployment Pattern (REQUIRED)
@@ -518,6 +598,7 @@ services:
 
 **Evidence:**
 - Node.js: `examples/nodejs/deep-thought-api/deploy/docker/Dockerfile`
+- Python: `examples/python/photo-restoration-api/deploy/docker/Dockerfile`
 - Rust: `examples/rust/oracle-of-babel/deploy/docker/Dockerfile`
 
 ### 8. Documentation Pattern (REQUIRED)
@@ -716,6 +797,23 @@ app.get("/.well-known/bazaar", (c) => c.json({
 - **Build:** `go build` or `Makefile`
 - **Deployment:** Standalone binary, Cloudflare Workers (via `syumai/workers`), Docker
 - **Evidence:** `examples/go/vulcan-logic-api/`
+
+### Python
+
+- **Framework:** FastAPI (modern async framework with automatic OpenAPI docs)
+- **x402 SDK:** `x402` (official Python SDK with FastAPI middleware)
+- **Build:** No build step (interpreted language); use virtual environment (`venv` or `uv`)
+- **Deployment:** Standalone (uvicorn), Docker, Cloud Run, AWS ECS/Fargate, Azure, Fly.io
+- **Key Libraries:**
+  - `fastapi` - Web framework
+  - `uvicorn` - ASGI server
+  - `x402` - Official x402 Python SDK
+  - `pydantic` - Data validation with type hints
+- **Package Management:** pip, uv (modern alternative to pip), or poetry
+- **Testing:** pytest, pytest-asyncio
+- **Requirements File:** `requirements.txt` (pip format)
+- **Note:** Python examples with native dependencies (OpenCV, image processing) are best deployed via Docker to ensure consistent system libraries across environments
+- **Evidence:** `examples/python/photo-restoration-api/`
 
 ### Rust
 
