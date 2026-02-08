@@ -51,10 +51,12 @@
 //!     ├─ No  ──────────────────────────────────► Return error (no settlement)
 //!     │
 //!     ▼ Yes
-//! Settle payment (async, fire-and-forget)
+//! Settle payment (blocking, awaited)
 //!     │
-//!     ▼
-//! Return response to client
+//!     ├─ Failed  ─────────────────────────────────► Return 402 (settlement failed)
+//!     │
+//!     ▼ Success
+//! Add PAYMENT-RESPONSE header and return response
 //! ```
 //!
 //! ## Actix-Web Middleware Architecture
@@ -86,11 +88,29 @@ use super::{
     types::{PaymentPayload, PaymentRequired, PaymentRequirements, ResourceInfo, X402_VERSION},
 };
 
+// The x402 v2 protocol defines three HTTP headers for the payment lifecycle:
+//
+//   PAYMENT-REQUIRED   (server → client)  Sent with HTTP 402 to tell the client
+//                                          what payment options are accepted.
+//
+//   PAYMENT-SIGNATURE  (client → server)  Sent by the client with a signed
+//                                          payment authorization.
+//
+//   PAYMENT-RESPONSE   (server → client)  Sent with the successful response to
+//                                          give the client the on-chain tx hash
+//                                          so they can verify settlement.
+//
+// All three are base64-encoded JSON. See the x402 v2 spec for the full schemas.
+
 /// The HTTP header name where clients send their payment authorization (v2).
 pub const PAYMENT_SIGNATURE_HEADER: &str = "Payment-Signature";
 
-/// The HTTP header where we return payment requirements.
+/// The HTTP header where we return payment requirements (on 402 responses).
 pub const PAYMENT_REQUIRED_HEADER: &str = "Payment-Required";
+
+/// The HTTP header where we return settlement results (on successful responses).
+/// Contains base64-encoded JSON with: `success`, `transaction`, `network`, `payer`.
+pub const PAYMENT_RESPONSE_HEADER: &str = "Payment-Response";
 
 // =============================================================================
 // X402State - Shared Configuration
@@ -479,31 +499,114 @@ where
                             // ─────────────────────────────────────────────
                             // Step 7: Settle if successful
                             // ─────────────────────────────────────────────
+                            //
+                            // IMPORTANT: Settlement MUST be blocking (awaited),
+                            // not fire-and-forget. This matches the official
+                            // TypeScript SDK behavior. The three outcomes are:
+                            //
+                            //   1. Handler failed (non-2xx) → skip settlement
+                            //      entirely. The user keeps their funds.
+                            //
+                            //   2. Settlement succeeds → attach PAYMENT-RESPONSE
+                            //      header with the tx hash, return the handler's
+                            //      original response to the client.
+                            //
+                            //   3. Settlement fails → discard the handler's
+                            //      response and return 402 instead. The client
+                            //      must NOT receive content they didn't pay for.
 
-                            if res.status().is_success() {
-                                // Spawn settlement as a background task.
-                                // We don't await it—the response goes to the
-                                // client immediately.
-                                let settle_state = state.clone();
-                                let settle_data = payment_data.clone();
-                                tokio::spawn(async move {
-                                    if let Err(e) = settle_state
-                                        .facilitator
-                                        .settle_payment(
-                                            &settle_data.payload,
-                                            &settle_data.requirements,
-                                        )
-                                        .await
-                                    {
-                                        // Log but don't fail—the client already
-                                        // got their response
-                                        log::error!("Settlement failed: {}", e);
-                                    }
-                                });
+                            if !res.status().is_success() {
+                                return Ok(res.map_into_left_body());
                             }
 
-                            // map_into_left_body because this is the inner service's response
-                            Ok(res.map_into_left_body())
+                            match state
+                                .facilitator
+                                .settle_payment(
+                                    &payment_data.payload,
+                                    &payment_data.requirements,
+                                )
+                                .await
+                            {
+                                Ok(settle_response) if settle_response.success => {
+                                    // Settlement succeeded—add PAYMENT-RESPONSE
+                                    // header so the client can verify the tx.
+                                    let settle_json = serde_json::to_vec(&settle_response)
+                                        .unwrap_or_else(|_| b"{}".to_vec());
+                                    let encoded = BASE64.encode(&settle_json);
+
+                                    let mut res = res;
+                                    if let Ok(val) = header::HeaderValue::from_str(&encoded) {
+                                        res.response_mut().headers_mut().insert(
+                                            header::HeaderName::from_static("payment-response"),
+                                            val,
+                                        );
+                                        res.response_mut().headers_mut().insert(
+                                            header::HeaderName::from_static(
+                                                "access-control-expose-headers",
+                                            ),
+                                            header::HeaderValue::from_static(
+                                                "Payment-Required, Payment-Response",
+                                            ),
+                                        );
+                                    }
+
+                                    log::info!(
+                                        "Settlement successful: tx={}",
+                                        settle_response.transaction
+                                    );
+
+                                    Ok(res.map_into_left_body())
+                                }
+                                Ok(settle_response) => {
+                                    // Settlement returned success: false.
+                                    // We MUST discard the handler's response and
+                                    // return 402 instead—otherwise the client gets
+                                    // content for free. We extract the HttpRequest
+                                    // from the ServiceResponse via into_parts() so
+                                    // we can build a fresh error response.
+                                    let reason = settle_response
+                                        .error_reason
+                                        .unwrap_or_else(|| "Unknown reason".to_string());
+                                    log::error!("Settlement failed: {}", reason);
+
+                                    let (http_req, _) = res.into_parts();
+                                    let response =
+                                        HttpResponse::build(StatusCode::PAYMENT_REQUIRED)
+                                            .insert_header((
+                                                header::CONTENT_TYPE,
+                                                "application/json",
+                                            ))
+                                            .json(serde_json::json!({
+                                                "error": "Settlement failed",
+                                                "details": reason
+                                            }));
+
+                                    Ok(ServiceResponse::new(http_req, response)
+                                        .map_into_boxed_body()
+                                        .map_into_right_body())
+                                }
+                                Err(e) => {
+                                    // Facilitator communication error—treat as
+                                    // settlement failure.
+                                    log::error!("Settlement error: {}", e);
+
+                                    let (http_req, _) = res.into_parts();
+                                    let response =
+                                        HttpResponse::build(StatusCode::PAYMENT_REQUIRED)
+                                            .insert_header((
+                                                header::CONTENT_TYPE,
+                                                "application/json",
+                                            ))
+                                            .json(serde_json::json!({
+                                                "error": "Settlement failed",
+                                                "details": e.to_string()
+                                            }));
+
+                                    Ok(ServiceResponse::new(http_req, response)
+                                        .map_into_boxed_body()
+                                        .map_into_right_body())
+                                }
+                            }
                         }
                         Err(e) => {
                             // Payment verification failed
