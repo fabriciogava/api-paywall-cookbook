@@ -192,6 +192,11 @@ async function main() {
      * POST REQUESTS:
      * If a JSON body is provided, we validate it before sending to ensure proper
      * formatting. Malformed JSON would cause cryptic server errors.
+     *
+     * COMMON MISTAKE:
+     * Users sometimes pass network names (like "solana") as positional arguments
+     * instead of using --network flag. This causes the parser to treat them as
+     * request bodies, leading to JSON validation errors.
      */
     let finalRequestBody = requestBody;
     if (requestBody) {
@@ -200,8 +205,11 @@ async function main() {
             logInfo(`Request body validated: ${requestBody.substring(0, 50)}${requestBody.length > 50 ? '...' : ''}`);
         } catch (error) {
             console.error(`❌ CRITICAL FAILURE: ${error instanceof Error ? error.message : String(error)}`);
-            console.error("   Request body must be valid JSON.");
-            console.error(`   Example: '{"key":"value"}'`);
+            if (!(error instanceof Error && error.message.includes("Did you mean to use --network"))) {
+                // Only show generic JSON help if it's not a network name mistake
+                console.error("   Request body must be valid JSON.");
+                console.error(`   Example: '{"key":"value"}'`);
+            }
             process.exit(1);
         }
     }

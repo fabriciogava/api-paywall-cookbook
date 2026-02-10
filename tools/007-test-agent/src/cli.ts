@@ -129,6 +129,15 @@ export function validateJson(jsonString: string): void {
     try {
         JSON.parse(jsonString);
     } catch (e) {
+        // Check if the string looks like a network name that was passed without --network flag
+        const networkNames = ["solana", "solana-mainnet", "solana-devnet", "base", "base-mainnet", "base-sepolia", "skale", "skale-mainnet", "skale-devnet", "skale-testnet"];
+        if (networkNames.includes(jsonString.toLowerCase().trim())) {
+            throw new Error(
+                `Invalid JSON format. Did you mean to use --network ${jsonString}?\n` +
+                `   Correct usage: npm start <url> --network ${jsonString}\n` +
+                `   You passed "${jsonString}" as a request body, but it looks like a network name.`
+            );
+        }
         throw new Error(`Invalid JSON format`);
     }
 }
@@ -150,8 +159,8 @@ export interface NetworkConfig {
 }
 
 // Network Chain IDs (CAIP-2 format) - Source: https://docs.kobaru.io/concepts/networks-assets
-const SOLANA_MAINNET_CHAIN_ID: Caip2ChainId = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
-const SOLANA_DEVNET_CHAIN_ID: Caip2ChainId = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+const SOLANA_MAINNET_CHAIN_ID: Caip2ChainId = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+const SOLANA_DEVNET_CHAIN_ID: Caip2ChainId = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
 const BASE_MAINNET_CHAIN_ID: Caip2ChainId = "eip155:8453";
 const BASE_SEPOLIA_CHAIN_ID: Caip2ChainId = "eip155:84532";
 const SKALE_MAINNET_CHAIN_ID: Caip2ChainId = "eip155:1187947933";
